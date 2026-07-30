@@ -1,0 +1,22 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://www.codingpets.dev/gallery",
+  "final_url": "https://www.codingpets.dev/gallery",
+  "status": 200,
+  "read_status": "ok",
+  "content_type": "text/html; charset=utf-8",
+  "fetched_at": "2026-07-30T22:48:18.857820+00:00",
+  "title": "Codex Pets Gallery - Browse, Preview & Download Custom Codex Pets | CodingPets.dev",
+  "description": "Browse a public Codex pets gallery with animated pixel sprites, preview their animations, open share links, direct downloads, pet.json manifests, spritesheet.webp atlases, and install commands.",
+  "site_name": "CodingPets.dev",
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "# U-001 custom Custom Soft Sticker Pet Soft Sticker $ npx codingpets install cp_7e0d127bed65315f210a7cd3991f5bcc",
+  "quote_candidates": [
+    "# U-001 custom Custom Soft Sticker Pet Soft Sticker $ npx codingpets install cp_7e0d127bed65315f210a7cd3991f5bcc"
+  ],
+  "word_count": 14,
+  "truncated": false,
+  "blocked": false,
+  "source": "direct_http"
+}

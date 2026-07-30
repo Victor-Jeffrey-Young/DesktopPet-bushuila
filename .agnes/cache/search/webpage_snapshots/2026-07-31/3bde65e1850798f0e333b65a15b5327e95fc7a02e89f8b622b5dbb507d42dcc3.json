@@ -1,0 +1,20 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://codexpets.directory/",
+  "final_url": "https://codexpets.directory/",
+  "status": 200,
+  "read_status": "blocked",
+  "content_type": "text/html; charset=utf-8",
+  "fetched_at": "2026-07-30T22:48:28.866359+00:00",
+  "title": "Codex Pets Directory - 3,300+ Pets for Codex",
+  "description": "Browse 3,300+ Codex Pets companions, preview animations, and install any pet for Codex with one command.",
+  "site_name": "Codex Pets",
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "",
+  "quote_candidates": [],
+  "word_count": 0,
+  "truncated": false,
+  "blocked": true,
+  "source": "direct_http"
+}

@@ -1,0 +1,23 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://codexskin.org/pets/",
+  "final_url": "https://codexskin.org/pets/",
+  "status": 200,
+  "read_status": "ok",
+  "content_type": "text/html; charset=utf-8",
+  "fetched_at": "2026-07-30T22:48:22.448651+00:00",
+  "title": "Codex Pet from Photo: Free Brief & Package Preview | CodexSkin",
+  "description": "Turn your own photo into a precise Codex pet brief for free, keep the image local, validate pet.json and the sprite atlas, and preview all nine states.",
+  "site_name": "CodexSkin",
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "01 Choose one personal photo Use your own dog, cat, self portrait or a rights-cleared mascot. Clear silhouette beats a busy background.",
+  "quote_candidates": [
+    "01 Choose one personal photo Use your own dog, cat, self portrait or a rights-cleared mascot.",
+    "Clear silhouette beats a busy background."
+  ],
+  "word_count": 22,
+  "truncated": false,
+  "blocked": false,
+  "source": "direct_http"
+}

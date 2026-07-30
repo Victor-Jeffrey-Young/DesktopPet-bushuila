@@ -1,0 +1,26 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://codexpet.xyz/spec/",
+  "final_url": "https://codexpet.xyz/spec/",
+  "status": 200,
+  "read_status": "ok",
+  "content_type": "text/html",
+  "fetched_at": "2026-07-30T22:48:41.141911+00:00",
+  "title": "Codex Pet Package Format: pet.json, spritesheet.webp, and Atlas Spec | Codex Pet",
+  "description": "Learn the Codex Pet package format, including pet.json, spritesheet.webp, upload validation, and admin review checks.",
+  "site_name": "Codex Pet",
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "Technical reference Codex Pet package format A Codex custom pet package is a local folder that contains pet.json and spritesheet.webp. Quick facts Package folder ~/.codex/pets/<pet-name>/ Required manifest pet.json Required spritesheet spritesheet.webp Atlas size Not enforced Grid Varies by pack Cell size Derived by client/runtime Format transparent WebP / RGBA Manifest shape { \"id\": \"codie\", \"displayName\": \"Codie\", \"description\": \"A tiny pixel robot companion for Codex Pet.\", \"spritesheetPath\": \"spritesheet.webp\", \"spriteVersionNumber\": 2 } Animation rows V1 uses 9 standard animation rows. V2 keeps those rows and adds rows 9–10 for 16 look directions. Both versions use an 8-column grid with 192x208 cells. Row State Recommended frames 0 idle 6 1 running-right 8 2 running-left 8 3 waving 4 4 jumping 5 5 failed 8 6 waiting 6 7 running 6 8 review 6 9 look-directions-a (V2) 8 10 look-directions-b (V2) 8 Validation rules The spritesheet is a readable transparent PNG or WebP image. V1 must be exactly 1536x1872. V2 must be exactly 1536x2288 and declare spriteVersionNumber: 2 in pet.json. Each action row must have at least one non-empty frame. Playback uses consecutive non-empty frames starting from column 0; trailing empty cells are ignored. No grid lines, labels, or frame numbers are present. The pet identity stays consistent across rows.",
+  "quote_candidates": [
+    "Technical reference Codex Pet package format A Codex custom pet package is a local folder that contains pet.",
+    "Quick facts Package folder ~/.",
+    "codex/pets/<pet-name>/ Required manifest pet.",
+    "json Required spritesheet spritesheet.",
+    "webp Atlas size Not enforced Grid Varies by pack Cell size Derived by client/runtime Format transparent WebP / RGBA Manifest shape { \"id\": \"codie\", \"displayName\": \"Codie\", \"description\": \"A tiny pixel robot companion for Codex Pet."
+  ],
+  "word_count": 206,
+  "truncated": false,
+  "blocked": false,
+  "source": "direct_http"
+}

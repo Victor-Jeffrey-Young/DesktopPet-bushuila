@@ -1,0 +1,22 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://petdex.dev/",
+  "final_url": "https://petdex.dev/",
+  "status": 200,
+  "read_status": "ok",
+  "content_type": "text/html; charset=utf-8",
+  "fetched_at": "2026-07-30T22:48:14.477046+00:00",
+  "title": "Petdex: Animated pets for your coding agents",
+  "description": "Petdex is the public gallery of animated pets for coding agents. Works with ChatGPT (Codex), Claude Code, Gemini CLI, and OpenCode. Browse open-source pets, preview their animations, and install one with a single command.",
+  "site_name": "Petdex",
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "No. 069 ★ FEATURED Boba ★ ↓ 6.7K A tiny otter sipping bubble tea while keeping you company in Codex. by railly 16 6.7K",
+  "quote_candidates": [
+    "7K A tiny otter sipping bubble tea while keeping you company in Codex."
+  ],
+  "word_count": 24,
+  "truncated": false,
+  "blocked": false,
+  "source": "direct_http"
+}

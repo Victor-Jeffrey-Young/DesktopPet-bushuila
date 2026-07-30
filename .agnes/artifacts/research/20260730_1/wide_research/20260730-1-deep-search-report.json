@@ -1,0 +1,23 @@
+{
+  "kind": "agnes_artifact",
+  "artifact_type": "research_markdown_report",
+  "research_kind": "wide_research",
+  "mode": "wide_research",
+  "session_id": "20260730_1",
+  "title": "桌面宠物技术栈与功能全景调研",
+  "local_path": "/Users/victor-oclp/Documents/Code/toy-code/bushuila/.agnes/artifacts/research/20260730_1/wide_research/20260730-1-deep-search-report.md",
+  "manifest_path": "/Users/victor-oclp/Documents/Code/toy-code/bushuila/.agnes/artifacts/research/20260730_1/wide_research/20260730-1-deep-search-report.json",
+  "repo_path": "/Users/victor-oclp/Documents/Code/toy-code/bushuila/.agnes/work/research/20260730_1/wide_research/repo",
+  "preview_uri": "ui://agnes-research/wide_research/20260730-1-deep-search-report",
+  "sources_count": 0,
+  "evidence_count": 0,
+  "conflicts_count": 0,
+  "blocked_sources_count": 0,
+  "confidence": "unknown",
+  "quality_warnings": [],
+  "created_at": "2026-07-30T22:46:13.324075+00:00",
+  "sources": [],
+  "evidence": [],
+  "conflicts": [],
+  "blocked_sources": []
+}

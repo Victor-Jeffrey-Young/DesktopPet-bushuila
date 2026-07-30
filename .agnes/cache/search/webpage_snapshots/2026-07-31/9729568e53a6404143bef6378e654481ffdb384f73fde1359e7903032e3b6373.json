@@ -1,0 +1,26 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://petdex.dev/about",
+  "final_url": "https://petdex.dev/about",
+  "status": 200,
+  "read_status": "ok",
+  "content_type": "text/html; charset=utf-8",
+  "fetched_at": "2026-07-30T22:48:45.357353+00:00",
+  "title": "About Petdex: Animated pets for your coding agents | Petdex",
+  "description": "Petdex is an open-source gallery of animated pets for coding agents like ChatGPT (Codex), Claude Code, Gemini, and OpenCode. Browse the catalog, install with one command, or submit your own.",
+  "site_name": "Petdex",
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "What is a coding agent pet? A pet is a small animated pixel companion for your coding agent. Each pet ships as a single pet.json describing 9 states (idle, working, sleeping, etc.) plus a horizontal spritesheet. Your agent picks the right state automatically based on what you're doing in your session.",
+  "quote_candidates": [
+    "A pet is a small animated pixel companion for your coding agent.",
+    "Each pet ships as a single pet.",
+    "json describing 9 states (idle, working, sleeping, etc.",
+    ") plus a horizontal spritesheet.",
+    "Your agent picks the right state automatically based on what you're doing in your session."
+  ],
+  "word_count": 51,
+  "truncated": false,
+  "blocked": false,
+  "source": "direct_http"
+}

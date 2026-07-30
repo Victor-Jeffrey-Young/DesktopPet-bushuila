@@ -1,0 +1,22 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://codex-pet.com/",
+  "final_url": "https://codex-pet.com/",
+  "status": 200,
+  "read_status": "ok",
+  "content_type": "text/html; charset=utf-8",
+  "fetched_at": "2026-07-30T22:48:33.182709+00:00",
+  "title": "codex-pet · animated pets for the Codex CLI",
+  "description": "Browse and install animated pets for the OpenAI Codex CLI. One command, instant install.",
+  "site_name": null,
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "ABG $ npx codex-pet-cli add abg",
+  "quote_candidates": [
+    "ABG $ npx codex-pet-cli add abg"
+  ],
+  "word_count": 6,
+  "truncated": false,
+  "blocked": false,
+  "source": "direct_http"
+}

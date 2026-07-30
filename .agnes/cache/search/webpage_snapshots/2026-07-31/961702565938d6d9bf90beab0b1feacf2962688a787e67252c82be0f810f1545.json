@@ -1,0 +1,23 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://petscodex.com/",
+  "final_url": "https://petscodex.com/",
+  "status": 200,
+  "read_status": "ok",
+  "content_type": "text/html; charset=UTF-8",
+  "fetched_at": "2026-07-30T22:48:10.793747+00:00",
+  "title": "Pets Codex - Codex Desktop Pets Gallery and Installer",
+  "description": "Browse community-made Codex desktop pets, preview animated spritesheets, copy npx install commands, or download pet packages for macOS and Windows.",
+  "site_name": "Pets Codex",
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "1 Copy a command Run npx petscodex install byte . The installer resolves the package by slug and places the pet files for you.",
+  "quote_candidates": [
+    "1 Copy a command Run npx petscodex install byte .",
+    "The installer resolves the package by slug and places the pet files for you."
+  ],
+  "word_count": 24,
+  "truncated": false,
+  "blocked": false,
+  "source": "direct_http"
+}

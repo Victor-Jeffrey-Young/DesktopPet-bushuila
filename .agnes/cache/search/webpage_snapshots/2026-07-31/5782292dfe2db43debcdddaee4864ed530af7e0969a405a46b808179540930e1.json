@@ -1,0 +1,20 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://github.com/alvinunreal/openpets",
+  "final_url": "https://github.com/alvinunreal/openpets",
+  "status": 200,
+  "read_status": "blocked",
+  "content_type": "text/html; charset=utf-8",
+  "fetched_at": "2026-07-30T22:44:37.034026+00:00",
+  "title": "GitHub - alvinunreal/openpets: Local first, desktop companion platform with animated pets, plugin SDK and coding-agent integrations. · GitHub",
+  "description": "Local first, desktop companion platform with animated pets, plugin SDK and coding-agent integrations. - alvinunreal/openpets",
+  "site_name": "GitHub",
+  "published_at": null,
+  "source_type": "source_repo",
+  "text": "",
+  "quote_candidates": [],
+  "word_count": 0,
+  "truncated": false,
+  "blocked": true,
+  "source": "direct_http"
+}

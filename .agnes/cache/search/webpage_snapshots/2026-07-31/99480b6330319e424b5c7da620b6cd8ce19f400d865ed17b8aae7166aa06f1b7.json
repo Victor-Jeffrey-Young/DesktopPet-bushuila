@@ -1,0 +1,26 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://codexpetlab.com/docs/v2-spritesheet",
+  "final_url": "https://codexpetlab.com/docs/v2-spritesheet",
+  "status": 200,
+  "read_status": "ok",
+  "content_type": "text/html; charset=utf-8",
+  "fetched_at": "2026-07-30T22:49:03.332425+00:00",
+  "title": "Codex Pet V2 Spritesheet Format — 1536×2288 | Codex Pet Lab",
+  "description": "Reference for the Codex Pet V2 8×11 spritesheet: 192×208 cells, nine animation states, and 16 clockwise look directions.",
+  "site_name": null,
+  "published_at": null,
+  "source_type": "unknown",
+  "text": "Format reference Codex Pet V2 Spritesheet Format V2 extends the original nine-row Codex pet atlas with two complete look-direction rows. The final WebP is exactly 1536×2288 pixels. Atlas geometry Columns: 8 Rows: 11 Cell width: 192 pixels Cell height: 208 pixels Final size: 1536×2288 pixels Rows 0–8: standard states 0 idle 1 running-right 2 running-left 3 waving 4 jumping 5 failed 6 waiting 7 running or active work 8 review Rows 9–10: look directions The 16 cells form one clockwise sequence in 22.5-degree steps. 000 means up, 090 means screen-right, 180 means down, and 270 means screen-left. row 9: 000, 022.5, 045, 067.5, 090, 112.5, 135, 157.5 row 10: 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5 Transparency and unused cells Unused cells in standard animation rows should remain fully transparent. Avoid backgrounds, cast shadows, labels, guide marks, detached effects, and content crossing into neighboring cells. Related resources How to Create a Custom Codex Pet Codex Pet pet.json Reference Free Codex Pet Validator Browse Codex pets",
+  "quote_candidates": [
+    "Format reference Codex Pet V2 Spritesheet Format V2 extends the original nine-row Codex pet atlas with two complete look-direction rows.",
+    "The final WebP is exactly 1536×2288 pixels.",
+    "Atlas geometry Columns: 8 Rows: 11 Cell width: 192 pixels Cell height: 208 pixels Final size: 1536×2288 pixels Rows 0–8: standard states 0 idle 1 running-right 2 running-left 3 waving 4 jumping 5 failed 6 waiting 7 running or active work 8 review Rows 9–10: look directions The 16 cells form one clockwise sequence in 22.",
+    "000 means up, 090 means screen-right, 180 means down, and 270 means screen-left.",
+    "5 Transparency and unused cells Unused cells in standard animation rows should remain fully transparent."
+  ],
+  "word_count": 166,
+  "truncated": false,
+  "blocked": false,
+  "source": "direct_http"
+}

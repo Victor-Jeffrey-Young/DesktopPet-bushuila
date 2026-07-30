@@ -1,0 +1,71 @@
+import { ref, onUnmounted } from 'vue'
+import { useAppStore } from '../stores/app'
+
+export function useReminderTimer() {
+  const store = useAppStore()
+  const timerId = ref<ReturnType<typeof setTimeout> | null>(null)
+  const countdown = ref(0)
+  const countdownId = ref<ReturnType<typeof setInterval> | null>(null)
+
+  function startCountdown() {
+    const target = store.nextReminderTime
+    countdown.value = Math.max(0, Math.floor((target - Date.now()) / 1000))
+
+    if (countdownId.value) clearInterval(countdownId.value)
+    countdownId.value = setInterval(() => {
+      countdown.value = Math.max(0, Math.floor((target - Date.now()) / 1000))
+      if (countdown.value <= 0 && countdownId.value) {
+        clearInterval(countdownId.value)
+        countdownId.value = null
+      }
+    }, 1000)
+  }
+
+  function scheduleReminder() {
+    if (timerId.value) clearTimeout(timerId.value)
+
+    const delay = store.nextReminderTime - Date.now()
+    startCountdown()
+
+    timerId.value = setTimeout(() => {
+      store.startReminder()
+      resetTimer()
+    }, Math.max(delay, 0))
+  }
+
+  function resetTimer() {
+    store.updateSettings({ intervalMinutes: store.settings.intervalMinutes })
+    scheduleReminder()
+  }
+
+  function snooze(minutes?: number) {
+    const mins = minutes ?? store.settings.snoozeMinutes
+    store.snooze(mins)
+    scheduleReminder()
+  }
+
+  function dismiss() {
+    store.spriteState = 'idle'
+    resetTimer()
+  }
+
+  function formatCountdown(seconds: number): string {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  onUnmounted(() => {
+    if (timerId.value) clearTimeout(timerId.value)
+    if (countdownId.value) clearInterval(countdownId.value)
+  })
+
+  return {
+    countdown,
+    scheduleReminder,
+    resetTimer,
+    snooze,
+    dismiss,
+    formatCountdown,
+  }
+}
