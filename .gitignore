@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Agnes tool directory (exclude local workspace)
+.agnes/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
