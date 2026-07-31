@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '../stores/app'
 
 export function useReminderTimer() {
@@ -55,9 +55,35 @@ export function useReminderTimer() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
 
+  // 窗口可见性检测：隐藏时暂停倒计时，恢复时重新计算
+  let isTabHidden = false
+
+  function onVisibilityChange() {
+    if (document.hidden) {
+      isTabHidden = true
+      if (countdownId.value) {
+        clearInterval(countdownId.value)
+        countdownId.value = null
+      }
+    } else if (isTabHidden) {
+      isTabHidden = false
+      // 恢复时重新计算差值并启动倒计时
+      const target = store.nextReminderTime
+      countdown.value = Math.max(0, Math.floor((target - Date.now()) / 1000))
+      if (countdown.value > 0) {
+        startCountdown()
+      }
+    }
+  }
+
+  onMounted(() => {
+    document.addEventListener('visibilitychange', onVisibilityChange)
+  })
+
   onUnmounted(() => {
     if (timerId.value) clearTimeout(timerId.value)
     if (countdownId.value) clearInterval(countdownId.value)
+    document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 
   return {

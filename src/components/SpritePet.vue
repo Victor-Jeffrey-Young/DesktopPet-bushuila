@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useAppStore()
-const { startDrag, hide } = useWindowDrag()
+const { startDrag, closeOrHide } = useWindowDrag()
 
 const theme = computed(() => store.currentPetConfig)
 
@@ -305,7 +305,7 @@ function openSettings(e: MouseEvent) {
         <button
           class="no-drag w-7 h-7 rounded-full bg-white/10 border border-white/20 shadow-lg text-white/70 hover:bg-red-500/70 hover:text-white hover:border-red-300/40 text-[11px] flex items-center justify-center transition-all duration-200 hover:scale-110"
           @mousedown.stop
-          @click.stop="hide"
+          @click.stop="closeOrHide"
           title="关闭"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-3.5 h-3.5">

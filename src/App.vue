@@ -10,8 +10,8 @@ import { useReminderTimer } from './composables/useReminderTimer'
 import { useAudio } from './composables/useAudio'
 
 const store = useAppStore()
-const { scheduleReminder, countdown, formatCountdown } = useReminderTimer()
-const { playUrl, playBeep } = useAudio()
+const { scheduleReminder, snooze: snoozeTimer, countdown, formatCountdown } = useReminderTimer()
+const { play: playAudio, playBeep } = useAudio()
 const showSettings = ref(false)
 const showBubble = ref(false)
 const appWindow = getCurrentWindow()
@@ -22,7 +22,7 @@ watch(() => store.spriteState, (state) => {
 
   if (store.settings.voiceSource === 'custom' && store.customVoices.length > 0) {
     const idx = Math.floor(Math.random() * store.customVoices.length)
-    playUrl(store.customVoices[idx].dataUrl)
+    playAudio(store.customVoices[idx].dataUrl)
   } else {
     playBeep(800, 300)
   }
@@ -52,8 +52,7 @@ function handleDismiss() {
 
 function handleSnooze() {
   showBubble.value = false
-  store.snooze()
-  scheduleReminder()
+  snoozeTimer()
 }
 
 onMounted(() => {

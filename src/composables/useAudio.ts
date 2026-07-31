@@ -12,36 +12,18 @@ function getCtx(): AudioContext {
 export function useAudio() {
   const isPlaying = ref(false)
 
-  async function playUrl(url: string) {
+  async function play(source: string) {
     isPlaying.value = true
     try {
       const ctx = getCtx()
-      const resp = await fetch(url)
+      const resp = await fetch(source)
       const buf = await resp.arrayBuffer()
       const decoded = await ctx.decodeAudioData(buf)
-      const source = ctx.createBufferSource()
-      source.buffer = decoded
-      source.connect(ctx.destination)
-      source.onended = () => { isPlaying.value = false }
-      source.start(0)
-    } catch (e) {
-      console.error('Audio playback failed:', e)
-      isPlaying.value = false
-    }
-  }
-
-  async function playFile(path: string) {
-    isPlaying.value = true
-    try {
-      const ctx = getCtx()
-      const resp = await fetch(path)
-      const buf = await resp.arrayBuffer()
-      const decoded = await ctx.decodeAudioData(buf)
-      const source = ctx.createBufferSource()
-      source.buffer = decoded
-      source.connect(ctx.destination)
-      source.onended = () => { isPlaying.value = false }
-      source.start(0)
+      const src = ctx.createBufferSource()
+      src.buffer = decoded
+      src.connect(ctx.destination)
+      src.onended = () => { isPlaying.value = false }
+      src.start(0)
     } catch (e) {
       console.error('Audio playback failed:', e)
       isPlaying.value = false
@@ -63,5 +45,5 @@ export function useAudio() {
     setTimeout(() => { isPlaying.value = false }, duration)
   }
 
-  return { isPlaying, playUrl, playFile, playBeep }
+  return { isPlaying, play, playBeep }
 }

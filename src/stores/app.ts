@@ -100,9 +100,6 @@ export const useAppStore = defineStore('app', () => {
     const mins = minutes ?? settings.value.snoozeMinutes
     spriteState.value = 'snoozing'
     nextReminderTime.value = Date.now() + mins * 60 * 1000
-    setTimeout(() => {
-      spriteState.value = 'idle'
-    }, 1000)
   }
 
   function updateSettings(newSettings: Partial<ReminderSettings>) {

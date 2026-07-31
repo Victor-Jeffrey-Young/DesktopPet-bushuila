@@ -16,6 +16,7 @@ pub fn run() {
             Some(vec!["--minimized"]),
         ))
         .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![quit_app])
         .setup(|app| {
             // macOS: 设置 Accessory 激活策略，防止焦点切换后透明窗口失效
             #[cfg(target_os = "macos")]
@@ -62,6 +63,12 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// 前端调用：彻底退出应用（由系统托盘开关控制关闭按钮行为）
+#[tauri::command]
+fn quit_app() {
+    std::process::exit(0);
 }
 
 /// macOS: 优化透明窗口的原生渲染属性，消除残影
