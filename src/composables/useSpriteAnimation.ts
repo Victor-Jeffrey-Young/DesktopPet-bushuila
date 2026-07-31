@@ -25,6 +25,7 @@ export function useSpriteAnimation() {
   let animTimer: ReturnType<typeof setTimeout> | null = null
   let animationActive = false
   let returnToIdle = false
+  let forcedLoop: boolean | null = null
 
   /** 设置/更新精灵表配置，同时重新加载图片 */
   function setConfig(cfg: CodexSpriteConfig | null) {
@@ -89,6 +90,12 @@ export function useSpriteAnimation() {
 
     const names: string[] = []
     const extras: Record<string, AnimationConfig> = {}
+    // pet.json 显式配置的动作（如 running/waving）也纳入可用动作
+    for (const key of Object.keys(c.animations)) {
+      if (key !== 'idle' && key !== 'reminding' && key !== 'snoozing') {
+        names.push(key)
+      }
+    }
 
     const rowActions: Array<[string, number]> = isStandardGrid
       ? CODEX_STANDARD_ACTIONS
@@ -197,7 +204,7 @@ export function useSpriteAnimation() {
   const isLooping = computed(() => {
     const c = config.value
     const anim = c?.animations[currentState.value]
-    return anim?.loop ?? true
+    return forcedLoop ?? anim?.loop ?? true
   })
   const currentRow = computed(() => {
     const c = config.value
@@ -208,6 +215,7 @@ export function useSpriteAnimation() {
   /** 切换到指定状态并重置帧 */
   function setState(state: SpriteAnimState) {
     if (currentState.value === state) return
+    forcedLoop = null
     returnToIdle = false
     currentState.value = state
     currentFrame.value = 0
@@ -220,7 +228,21 @@ export function useSpriteAnimation() {
   /** 播放一次性动作，结束后自动回到 idle */
   function playOnce(name: string) {
     if (!config.value?.animations[name]) return
+    forcedLoop = null
     returnToIdle = true
+    currentState.value = name
+    currentFrame.value = 0
+    if (animationActive) {
+      stopAnimation()
+      startAnimation()
+    }
+  }
+
+  /** 循环播放动作（如移动动画），直到 setState/playOnce/playLoop 切换 */
+  function playLoop(name: string) {
+    if (!config.value?.animations[name]) return
+    forcedLoop = true
+    returnToIdle = false
     currentState.value = name
     currentFrame.value = 0
     if (animationActive) {
@@ -329,6 +351,7 @@ export function useSpriteAnimation() {
     setConfig,
     setState,
     playOnce,
+    playLoop,
     drawToCanvas,
     drawRect,
     startAnimation,

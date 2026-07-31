@@ -32,6 +32,8 @@ async function playVoiceFromPath(filePath: string) {
 watch(() => store.spriteState, (state) => {
   if (state !== 'reminding') return
 
+  showBubble.value = true
+
   if (store.settings.voiceSource === 'custom' && store.customVoices.length > 0) {
     const idx = Math.floor(Math.random() * store.customVoices.length)
     const voice = store.customVoices[idx]

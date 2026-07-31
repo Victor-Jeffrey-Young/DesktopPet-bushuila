@@ -56,6 +56,8 @@ export interface PetPackage {
     reminding: AnimationConfig
     snoozing: AnimationConfig
   }
+  /** 可选：显式命名的动作行（如 running/waving），未定义时自动检测并按网格推断 */
+  actions?: Record<string, AnimationConfig>
   microActions?: string[]
   /** 宠物包来源：builtin | imported */
   source?: 'builtin' | 'imported'
@@ -119,6 +121,8 @@ export interface ResolvedPetConfig {
   packageStateMap?: PetPackage['stateMap']
   packageFrameWidth?: number
   packageFrameHeight?: number
+  /** 来自宠物包显式命名的动作（如 running/waving） */
+  packageActions?: PetPackage['actions']
 }
 
 export interface PetThemeConfig {
@@ -202,6 +206,7 @@ export function convertPetPackageToResolvedConfig(pkg: PetPackage, spritesheetUr
     packageStateMap: pkg.stateMap,
     packageFrameWidth: pkg.frameWidth,
     packageFrameHeight: pkg.frameHeight,
+    packageActions: pkg.actions,
   }
 }
 

@@ -72,7 +72,7 @@ describe('validatePetPackage', () => {
     expect(result.stateMap.idle.row).toBe(0)
     expect(result.stateMap.idle.frames).toBe(6)
     expect(result.stateMap.reminding.row).toBe(1)
-    expect(result.stateMap.snoozing.row).toBe(2)
+    expect(result.stateMap.snoozing.row).toBe(3)
   })
 
   it('should fill default for partially missing stateMap', () => {
@@ -88,7 +88,7 @@ describe('validatePetPackage', () => {
 
     expect(result.stateMap.idle.frames).toBe(2)
     expect(result.stateMap.reminding.row).toBe(1)
-    expect(result.stateMap.snoozing.row).toBe(2)
+    expect(result.stateMap.snoozing.row).toBe(3)
   })
 
   it('should fallback invalid animation config to default', () => {
@@ -115,6 +115,25 @@ describe('validatePetPackage', () => {
 
   it('should throw on missing displayName', () => {
     expect(() => validatePetPackage({ id: 'test' })).toThrow('missing displayName')
+  })
+
+  it('should parse explicit actions', () => {
+    const data = {
+      id: 'test',
+      displayName: 'Test',
+      spritesheetPath: 'spritesheet.webp',
+      actions: {
+        running: { row: 2, frames: 8, fps: 8 },
+        waving: { row: 4, frames: 6 },
+        bad: { frames: 3 },
+      },
+    }
+
+    const result = validatePetPackage(data)
+
+    expect(result.actions?.running).toEqual({ row: 2, frames: 8, fps: 8, loop: false, sourceY: undefined, sourceH: undefined })
+    expect(result.actions?.waving).toMatchObject({ row: 4, frames: 6, loop: false })
+    expect(result.actions?.bad).toBeUndefined()
   })
 
   it('should throw on non-object input', () => {

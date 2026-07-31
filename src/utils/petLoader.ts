@@ -41,11 +41,11 @@ export async function loadAllBuiltinPets(): Promise<PetPackage[]> {
 /** Codex 标准网格默认值（1536×1872，8列，单元格 192×208） */
 const DEFAULT_FRAME_WIDTH = 192
 const DEFAULT_FRAME_HEIGHT = 208
-/** 缺少 stateMap 时的默认行映射（row 0/1/2） */
+/** 缺少 stateMap 时的默认行映射（Codex 标准网格：idle row0 / waving row1 / running row2 / waiting row3） */
 const DEFAULT_STATE_MAP: PetPackage['stateMap'] = {
   idle: { row: 0, frames: 6, fps: 8, loop: true },
   reminding: { row: 1, frames: 8, fps: 8, loop: true },
-  snoozing: { row: 2, frames: 5, fps: 4, loop: true },
+  snoozing: { row: 3, frames: 4, fps: 4, loop: true },
 }
 
 export function validatePetPackage(data: unknown): PetPackage {
@@ -63,6 +63,7 @@ export function validatePetPackage(data: unknown): PetPackage {
   }
 
   const stateMap = normalizeStateMap(raw.stateMap)
+  const actions = normalizeActions(raw.actions)
 
   return {
     id: raw.id,
@@ -75,8 +76,30 @@ export function validatePetPackage(data: unknown): PetPackage {
     frameWidth: typeof raw.frameWidth === 'number' ? raw.frameWidth : DEFAULT_FRAME_WIDTH,
     frameHeight: typeof raw.frameHeight === 'number' ? raw.frameHeight : DEFAULT_FRAME_HEIGHT,
     stateMap,
+    actions,
     microActions: Array.isArray(raw.microActions) ? raw.microActions : undefined,
   }
+}
+
+/** 规范化显式动作定义：row/frames 必须有效，否则丢弃 */
+function normalizeActions(raw: unknown): PetPackage['actions'] | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const out: PetPackage['actions'] = {}
+  const map = raw as Record<string, unknown>
+  for (const [name, cfg] of Object.entries(map)) {
+    if (!cfg || typeof cfg !== 'object') continue
+    const anim = cfg as Record<string, unknown>
+    if (typeof anim.row !== 'number' || typeof anim.frames !== 'number') continue
+    out[name] = {
+      row: anim.row,
+      frames: anim.frames,
+      fps: typeof anim.fps === 'number' ? anim.fps : 8,
+      loop: typeof anim.loop === 'boolean' ? anim.loop : false,
+      sourceY: typeof anim.sourceY === 'number' ? anim.sourceY : undefined,
+      sourceH: typeof anim.sourceH === 'number' ? anim.sourceH : undefined,
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 /** 规范化 stateMap：缺少时使用 Codex 标准默认，部分缺失时逐个回退 */

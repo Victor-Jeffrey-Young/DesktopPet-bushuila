@@ -51,13 +51,38 @@ const activeCustomPet = computed(() =>
 
 function randomPosition() {
   if (unmounted || isHovered.value || props.state !== 'idle') return
-  const maxX = 60
-  const maxY = 80
-  wanderX.value = (Math.random() - 0.5) * maxX * 2
-  wanderY.value = (Math.random() - 0.5) * maxY * 2
+  const winW = window.innerWidth
+  const winH = window.innerHeight
+  const PET_HALF = 56
+  const COUNTDOWN_H = 36
+  const EDGE = 8
+  // 各方向允许移动的最大距离（保证精灵+倒计时不超出窗口）
+  const maxX = Math.max(winW / 2 - PET_HALF - EDGE, 10)
+  const maxUp = Math.max((winH * PET_VERTICAL_PCT) / 100 - PET_HALF - EDGE, 0)
+  const maxDown = Math.max(winH - (winH * PET_VERTICAL_PCT) / 100 - PET_HALF - COUNTDOWN_H - EDGE, 10)
+  wanderX.value = -maxX + Math.random() * maxX * 2
+  wanderY.value = -maxUp + Math.random() * (maxUp + maxDown)
   isWalking.value = true
   setTimeout(() => { if (!unmounted) isWalking.value = false }, 600)
 }
+
+/** 移动时播放 running/walking 动画，停下回到 idle */
+let moveAnimName: string | null = null
+watch(isWalking, (walking) => {
+  if (!theme.value.isCodex || !spriteAnim.isLoaded.value) return
+  if (walking) {
+    const name = spriteAnim.availableActions.value.find(a => a === 'running' || a === 'walking')
+    if (name) {
+      moveAnimName = name
+      spriteAnim.playLoop(name)
+    }
+  } else {
+    if (moveAnimName && spriteAnim.currentState.value === moveAnimName) {
+      spriteAnim.setState('idle')
+    }
+    moveAnimName = null
+  }
+})
 
 function setThoughtEmoji(action: MicroAction) {
   // 优先使用自定义精灵配置的表情
@@ -90,11 +115,11 @@ function getActionDuration(action: MicroAction): number {
 function randomAction() {
   if (unmounted) return
 
-  // Codex 精灵：随机播放 spritesheet 动作
+  // Codex 精灵：随机播放 spritesheet 动作（排除移动类动画，移动由 isWalking 驱动）
   if (theme.value.isCodex && spriteAnim.availableActions.value.length > 0) {
-    const name = spriteAnim.availableActions.value[
-      Math.floor(Math.random() * spriteAnim.availableActions.value.length)
-    ]
+    const idleActions = spriteAnim.availableActions.value.filter(a => a !== 'running' && a !== 'walking')
+    if (idleActions.length === 0) return
+    const name = idleActions[Math.floor(Math.random() * idleActions.length)]
     spriteAnim.playOnce(name)
     return
   }
@@ -107,6 +132,25 @@ function randomAction() {
   setThoughtEmoji(currentAction.value)
   setTimeout(() => { if (!unmounted) currentAction.value = 'idle' }, getActionDuration(currentAction.value))
 }
+
+const PET_VERTICAL_PCT = 32
+
+/** 按钮位置：优先精灵右缘 +8px，右侧空间不足时翻转到左侧，clamp 在窗口内 */
+const buttonsStyle = computed(() => {
+  const winW = window.innerWidth
+  const winH = window.innerHeight
+  const petCenterX = winW / 2 + wanderX.value
+  const petCenterY = (winH * PET_VERTICAL_PCT) / 100 + wanderY.value
+  const BTN_W = 28
+  const GAP = 8
+  let left = petCenterX + 56 + GAP
+  if (left + BTN_W > winW - 4) {
+    left = petCenterX - 56 - GAP - BTN_W
+  }
+  left = Math.min(Math.max(left, 4), winW - BTN_W - 4)
+  const top = Math.min(Math.max(petCenterY - 32, 4), winH - 64 - 4)
+  return { left: `${left}px`, top: `${top}px` }
+})
 
 /** 点击精灵：随机触发一个动作（Codex 精灵播放 spritesheet 动作，emoji 精灵做微动作） */
 function triggerAction() {
@@ -139,7 +183,7 @@ function scheduleWander() {
 function scheduleAction() {
   actionTimer = setTimeout(() => {
     if (unmounted) return
-    if (props.state === 'idle' && !isHovered.value) randomAction()
+    if (props.state === 'idle' && !isHovered.value && !isWalking.value) randomAction()
     scheduleAction()
   }, 3000 + Math.random() * 5000)
 }
@@ -167,6 +211,7 @@ watch(() => [theme.value.isCodex, theme.value.spritesheetUrl], () => {
       idle:      theme.value.packageStateMap.idle,
       reminding: theme.value.packageStateMap.reminding,
       snoozing:  theme.value.packageStateMap.snoozing,
+      ...theme.value.packageActions,
     },
   })
 }, { immediate: true })
@@ -270,7 +315,7 @@ function openSettings(e: MouseEvent) {
       class="absolute flex flex-col items-center"
       :style="{
         left: '50%',
-        top: '50%',
+        top: PET_VERTICAL_PCT + '%',
         transform: `translate(calc(-50% + ${wanderX}px), calc(-50% + ${wanderY}px))`,
         transition: isWalking ? 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0.3s ease',
       }"
@@ -320,7 +365,7 @@ function openSettings(e: MouseEvent) {
         </div>
       </div>
 
-      <!-- 倒计时 -->
+        <!-- 倒计时 -->
       <div
         v-if="state === 'idle'"
         class="mt-1.5 px-4 py-1.5 rounded-full bg-black/30 border border-white/15 shadow-lg inline-flex items-center justify-center"
@@ -329,11 +374,13 @@ function openSettings(e: MouseEvent) {
           {{ countdown }}
         </span>
       </div>
+      </div>
 
-      <!-- 操作按钮 -->
+      <!-- 操作按钮（跟随精灵，clamp 在窗口内） -->
       <div
-        class="absolute -right-8 top-1/2 -translate-y-1/2 flex flex-col gap-2 transition-all duration-300"
-          :class="showButtons ? 'opacity-100' : 'opacity-0'"
+        class="absolute flex flex-col gap-2 transition-all duration-300"
+        :class="showButtons ? 'opacity-100' : 'opacity-0'"
+        :style="buttonsStyle"
       >
         <button
           class="no-drag w-7 h-7 rounded-full bg-white/10 border border-white/20 shadow-lg text-white/70 hover:bg-red-500/70 hover:text-white hover:border-red-300/40 text-[11px] flex items-center justify-center transition-all duration-200 hover:scale-110"
@@ -358,7 +405,6 @@ function openSettings(e: MouseEvent) {
         </button>
       </div>
     </div>
-  </div>
 </template>
 
 <style scoped>
