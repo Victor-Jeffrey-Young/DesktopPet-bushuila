@@ -54,16 +54,32 @@
       "allow": [{ "path": "$APPDATA/voices/*" }]
     },
     {
-      "identifier": "fs:allow-remove-file",
+      "identifier": "fs:allow-remove",
       "allow": [{ "path": "$APPDATA/voices/*" }]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [{ "path": "$APPDATA" }]
+      "allow": [{ "path": "$APPDATA/voices" }]
     },
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$APPDATA/voices/*" }]
+      "allow": [{ "path": "$APPDATA/voices" }, { "path": "$APPDATA/voices/*" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "$APPDATA/pets/*/*" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "$APPDATA/pets/*/*" }]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [{ "path": "$APPDATA/pets/*" }]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$APPDATA/pets/*" }, { "path": "$APPDATA/pets/*/*" }]
     }
   ]
 }

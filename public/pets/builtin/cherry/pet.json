@@ -1,0 +1,12 @@
+{
+  "id": "cherry",
+  "displayName": "小樱花",
+  "description": "浪漫的樱花精灵，带来春日气息",
+  "version": "1.0",
+  "fallbackEmoji": "🌸",
+  "stateMap": {
+    "idle": { "row": 0, "frames": 1 },
+    "reminding": { "row": 0, "frames": 1 },
+    "snoozing": { "row": 0, "frames": 1 }
+  }
+}

@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ReminderSettings, DrinkRecord, CustomVoice, SpriteState, CustomPetConfig } from '../types'
+import type { ReminderSettings, DrinkRecord, CustomVoice, SpriteState, CustomPetConfig, PetPackage } from '../types'
+import { convertPetPackageToResolvedConfig } from '../types'
 import { resolvePetConfig } from '../types'
-import { saveVoiceFile, deleteVoiceFile, dataUrlToUint8Array } from '../utils/storage'
+import { saveVoiceFile, deleteVoiceFile, dataUrlToUint8Array, savePetSprite } from '../utils/storage'
+import { loadAllBuiltinPets, resolveSpritesheetUrl } from '../utils/petLoader'
 
 const STORAGE_KEY_SETTINGS = 'bushuila_settings'
 const STORAGE_KEY_VOICES = 'bushuila_custom_voices'
@@ -68,16 +70,30 @@ export const useAppStore = defineStore('app', () => {
   )
   const customVoices = ref<CustomVoice[]>(loadFromStorage<CustomVoice>(STORAGE_KEY_VOICES))
   const customPets = ref<CustomPetConfig[]>(loadFromStorage<CustomPetConfig>(STORAGE_KEY_CUSTOM_PETS))
+  const builtinPets = ref<PetPackage[]>([])
+  const importedPets = ref<PetPackage[]>(loadFromStorage<PetPackage>('bushuila_imported_pets'))
   const nextReminderTime = ref<number>(Date.now() + settings.value.intervalMinutes * 60 * 1000)
 
-  /** 解析当前选中的精灵（预设或自定义） */
-  const currentPetConfig = computed(() =>
-    resolvePetConfig(
-      settings.value.petTheme.pet,
-      settings.value.petTheme.customPetId,
-      customPets.value,
-    ),
-  )
+  const allPets = computed(() => [...builtinPets.value, ...importedPets.value])
+
+  const currentPetConfig = computed(() => {
+    const petId = settings.value.petTheme.pet === 'custom'
+      ? settings.value.petTheme.customPetId
+      : settings.value.petTheme.pet
+
+    if (settings.value.petTheme.pet === 'custom' && settings.value.petTheme.customPetId) {
+      const custom = customPets.value.find(p => p.id === settings.value.petTheme.customPetId)
+      if (custom) return resolvePetConfig('custom', custom.id, customPets.value)
+    }
+
+    const pkg = allPets.value.find(p => p.id === petId)
+    if (pkg) return convertPetPackageToResolvedConfig(pkg, resolveSpritesheetUrl(pkg))
+
+    const fallbackPkg = builtinPets.value.find(p => p.id === 'drop')
+    if (fallbackPkg) return convertPetPackageToResolvedConfig(fallbackPkg, resolveSpritesheetUrl(fallbackPkg))
+
+    return resolvePetConfig('drop', undefined, [])
+  })
 
   const todayRecords = computed(() => {
     const today = new Date()
@@ -179,12 +195,54 @@ export const useAppStore = defineStore('app', () => {
     saveToStorage(STORAGE_KEY_VOICES, customVoices.value)
   }
 
+  async function loadBuiltinPets() {
+    if (builtinPets.value.length > 0) return
+    builtinPets.value = await loadAllBuiltinPets()
+  }
+
+  function setActivePet(petId: string) {
+    const pkg = allPets.value.find(p => p.id === petId)
+    if (!pkg) return
+    settings.value.petTheme = { pet: petId as any }
+    saveSettingsToStorage(settings.value)
+  }
+
+  async function importPetPackage(pkg: PetPackage, spritesheetData?: Uint8Array) {
+    pkg.source = 'imported'
+    if (pkg.spritesheetPath && spritesheetData) {
+      try {
+        pkg.localPath = await savePetSprite(pkg.id, pkg.spritesheetPath, spritesheetData)
+      } catch (e) {
+        console.error('Failed to save pet spritesheet:', pkg.id, e)
+      }
+    }
+    const existing = importedPets.value.findIndex(p => p.id === pkg.id)
+    if (existing >= 0) {
+      importedPets.value[existing] = pkg
+    } else {
+      importedPets.value.push(pkg)
+    }
+    saveToStorage('bushuila_imported_pets', importedPets.value)
+  }
+
+  function removeImportedPet(petId: string) {
+    importedPets.value = importedPets.value.filter(p => p.id !== petId)
+    saveToStorage('bushuila_imported_pets', importedPets.value)
+    if (settings.value.petTheme.pet === petId) {
+      settings.value.petTheme = { pet: 'drop' }
+      saveSettingsToStorage(settings.value)
+    }
+  }
+
   return {
     settings,
     spriteState,
     drinkRecords,
     customVoices,
     customPets,
+    builtinPets,
+    importedPets,
+    allPets,
     currentPetConfig,
     nextReminderTime,
     todayRecords,
@@ -199,5 +257,9 @@ export const useAppStore = defineStore('app', () => {
     updateCustomPet,
     deleteCustomPet,
     migrateVoices,
+    loadBuiltinPets,
+    setActivePet,
+    importPetPackage,
+    removeImportedPet,
   }
 })

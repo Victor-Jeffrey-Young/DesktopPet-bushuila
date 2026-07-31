@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAppStore } from '../stores/app'
-import { PET_THEMES, convertCustomPetToResolvedConfig } from '../types'
-import type { PetType, CustomPetConfig } from '../types'
-import CustomPetEditor from './CustomPetEditor.vue'
+import type { PetType, CustomPetConfig, PetPackage } from '../types'
+import { validatePetPackage } from '../utils/petLoader'
 import SettingsCard from './SettingsCard.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
 import { enable as enableAutostart, disable as disableAutostart } from '@tauri-apps/plugin-autostart'
+import JSZip from 'jszip'
 
 const emit = defineEmits<{ close: [] }>()
 const store = useAppStore()
@@ -15,7 +15,7 @@ const store = useAppStore()
 const tabs = [
   { id: 'general' as const, icon: '◎', label: '常规' },
   { id: 'voice' as const, icon: '▶', label: '语音' },
-  { id: 'appearance' as const, icon: '◆', label: '形象' },
+  { id: 'appearance' as const, icon: '◆', label: '宠物' },
   { id: 'history' as const, icon: '●', label: '历史' },
 ]
 const activeTab = ref<'general' | 'voice' | 'appearance' | 'history'>('general')
@@ -28,10 +28,13 @@ const autoStartInput = ref(store.settings.autoStart)
 const systemTrayInput = ref(store.settings.systemTray)
 const petTypeInput = ref<PetType | 'custom'>(store.settings.petTheme.pet)
 const selectedCustomPetId = ref<string | undefined>(store.settings.petTheme.customPetId)
+const selectedPetId = ref<string>(
+  store.settings.petTheme.pet === 'custom'
+    ? (store.settings.petTheme.customPetId ?? 'drop')
+    : store.settings.petTheme.pet,
+)
 const fileInputRef = ref<HTMLInputElement | null>(null)
-
-const showEditor = ref(false)
-const editingPet = ref<CustomPetConfig | undefined>()
+const petPackageInputRef = ref<HTMLInputElement | null>(null)
 
 const todayDate = computed(() => {
   const d = new Date()
@@ -44,8 +47,7 @@ const previewStyle = computed(() => {
     const pet = store.customPets.find(p => p.id === selectedCustomPetId.value)
     if (pet) return { background: `linear-gradient(135deg, ${pet.colors.idle[0]}, ${pet.colors.idle[1]})` }
   }
-  const type = petTypeInput.value === 'custom' ? 'drop' : petTypeInput.value
-  return { class: `bg-gradient-to-br ${PET_THEMES[type].colors.idle}` }
+  return { class: 'bg-gradient-to-br from-blue-200 to-blue-300' }
 })
 
 const previewEmoji = computed(() => {
@@ -53,13 +55,14 @@ const previewEmoji = computed(() => {
     const pet = store.customPets.find(p => p.id === selectedCustomPetId.value)
     if (pet) return { idle: pet.emoji.idle, reminding: pet.emoji.reminding, snoozing: pet.emoji.snoozing }
   }
-  const type = petTypeInput.value === 'custom' ? 'drop' : petTypeInput.value
-  const theme = PET_THEMES[type]
-  return { idle: theme.emoji.idle, reminding: theme.emoji.reminding, snoozing: theme.emoji.snoozing }
+  const pkg = store.allPets.find(p => p.id === selectedPetId.value)
+  if (pkg) return { idle: pkg.fallbackEmoji, reminding: pkg.fallbackEmoji, snoozing: pkg.fallbackEmoji }
+  return { idle: '💧', reminding: '💧', snoozing: '💧' }
 })
 
 // --- 操作 ---
 async function saveSettings() {
+  const isCustom = petTypeInput.value === 'custom'
   store.updateSettings({
     intervalMinutes: intervalInput.value,
     snoozeMinutes: snoozeInput.value,
@@ -67,8 +70,8 @@ async function saveSettings() {
     autoStart: autoStartInput.value,
     systemTray: systemTrayInput.value,
     petTheme: {
-      pet: petTypeInput.value,
-      customPetId: selectedCustomPetId.value,
+      pet: isCustom ? 'custom' : (selectedPetId.value as any),
+      customPetId: isCustom ? selectedCustomPetId.value : undefined,
     },
   })
 
@@ -85,43 +88,23 @@ async function saveSettings() {
 function selectPresetPet(key: PetType) {
   petTypeInput.value = key
   selectedCustomPetId.value = undefined
+  selectedPetId.value = key
 }
 
 function selectCustomPet(id: string) {
   petTypeInput.value = 'custom'
   selectedCustomPetId.value = id
+  selectedPetId.value = id
 }
 
-function isCustomPetSelected(id: string): boolean {
-  return petTypeInput.value === 'custom' && selectedCustomPetId.value === id
+function selectPetPackage(id: string) {
+  petTypeInput.value = id as PetType
+  selectedCustomPetId.value = undefined
+  selectedPetId.value = id
 }
 
-function openEditor(pet?: CustomPetConfig) {
-  editingPet.value = pet
-  showEditor.value = true
-}
-
-function handleEditorSave(data: Omit<CustomPetConfig, 'id' | 'createdAt'>) {
-  if (editingPet.value) {
-    store.updateCustomPet(editingPet.value.id, data)
-    if (selectedCustomPetId.value === editingPet.value.id) selectCustomPet(editingPet.value.id)
-  } else {
-    const id = store.createCustomPet(data)
-    selectCustomPet(id)
-  }
-  showEditor.value = false
-  editingPet.value = undefined
-}
-
-function deleteCustomPetConfirm(id: string) {
-  const pet = store.customPets.find(p => p.id === id)
-  if (pet && confirm(`确定删除精灵"${pet.name}"吗？`)) {
-    store.deleteCustomPet(id)
-    if (selectedCustomPetId.value === id) {
-      selectedCustomPetId.value = undefined
-      petTypeInput.value = store.settings.petTheme.pet
-    }
-  }
+function isPetSelected(id: string): boolean {
+  return selectedPetId.value === id
 }
 
   async function handleFileImport(e: Event) {
@@ -135,6 +118,43 @@ function deleteCustomPetConfirm(id: string) {
         await store.addCustomVoice(file.name, data)
       } catch (err) {
         console.error('导入语音失败:', file.name, err)
+      }
+    }
+    input.value = ''
+  }
+
+  async function handlePetPackageImport(e: Event) {
+    const input = e.target as HTMLInputElement
+    const files = input.files
+    if (!files || files.length === 0) return
+    for (const file of files) {
+      try {
+        const zip = await JSZip.loadAsync(file)
+        const petJsonFile = zip.file('pet.json')
+        if (!petJsonFile) {
+          alert(`导入失败：${file.name} 中缺少 pet.json`)
+          continue
+        }
+        const petJsonText = await petJsonFile.async('text')
+        const petJsonData = JSON.parse(petJsonText)
+        const pkg = validatePetPackage(petJsonData)
+
+        let spritesheetData: Uint8Array | undefined
+        if (pkg.spritesheetPath) {
+          const spriteFile = zip.file(pkg.spritesheetPath)
+          if (!spriteFile) {
+            alert(`导入失败：宠物包缺少 ${pkg.spritesheetPath}`)
+            continue
+          }
+          spritesheetData = new Uint8Array(await spriteFile.async('arraybuffer'))
+        }
+
+        await store.importPetPackage(pkg, spritesheetData)
+        selectPetPackage(pkg.id)
+        alert(`✅ 已导入宠物「${pkg.displayName}」`)
+      } catch (err) {
+        console.error('导入宠物包失败:', file.name, err)
+        alert(`导入失败：${file.name} 不是有效的宠物包`)
       }
     }
     input.value = ''
@@ -274,67 +294,42 @@ function deleteCustomPetConfirm(id: string) {
           </div>
         </template>
 
-        <!-- ===== 形象 ===== -->
+        <!-- ===== 宠物集市 ===== -->
         <template v-if="activeTab === 'appearance'">
-          <SettingsCard title="内置精灵">
-            <div class="grid grid-cols-4 gap-2.5">
+          <SettingsCard title="宠物集市">
+            <div v-if="store.allPets.length === 0" class="text-xs text-gray-400 text-center py-4">
+              加载中...
+            </div>
+            <div v-else class="grid grid-cols-4 gap-2.5">
               <button
-                v-for="(cfg, key) in PET_THEMES" :key="key"
+                v-for="pet in store.allPets" :key="pet.id"
                 :class="[
-                  'flex flex-col items-center gap-1 p-3 rounded-xl border transition',
-                  petTypeInput === key && !selectedCustomPetId
+                  'flex flex-col items-center gap-1 p-3 rounded-xl border transition relative group',
+                  isPetSelected(pet.id)
                     ? 'bg-blue-50 border-blue-200'
                     : 'bg-white/40 border-gray-200/30 hover:border-gray-300',
                 ]"
-                @click="selectPresetPet(key)"
+                @click="selectPetPackage(pet.id)"
               >
-                <span class="text-2xl">{{ cfg.emoji.idle }}</span>
-                <span class="text-[10px] text-gray-500">{{ cfg.label }}</span>
+                <span class="text-2xl">{{ pet.fallbackEmoji }}</span>
+                <span class="text-[10px] text-gray-500 truncate max-w-full">{{ pet.displayName }}</span>
+                <span v-if="pet.source === 'builtin'" class="absolute -top-1 -right-1 text-[8px] bg-gray-100 text-gray-400 px-1 rounded">内置</span>
+                <span v-else class="absolute -top-1 -right-1 text-[8px] bg-green-100 text-green-600 px-1 rounded">导入</span>
               </button>
             </div>
           </SettingsCard>
 
-          <SettingsCard title="自定义精灵">
-            <template #default>
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-gray-400">创建你的专属精灵</span>
-                <button
-                  class="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition"
-                  @click="openEditor()"
-                >
-                  + 新建
-                </button>
-              </div>
-              <div v-if="store.customPets.length === 0" class="text-xs text-gray-400 text-center py-3">
-                还没有自定义精灵
-              </div>
-              <div v-else class="grid grid-cols-4 gap-2.5">
-                <button
-                  v-for="pet in store.customPets" :key="pet.id"
-                  :class="[
-                    'flex flex-col items-center gap-1 p-3 rounded-xl border transition relative group',
-                    isCustomPetSelected(pet.id)
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'bg-white/40 border-gray-200/30 hover:border-gray-300',
-                  ]"
-                  @click="selectCustomPet(pet.id)"
-                >
-                  <span class="text-2xl">{{ pet.emoji.idle }}</span>
-                  <span class="text-[10px] text-gray-500 truncate max-w-full">{{ pet.name }}</span>
-                  <div class="absolute -top-1.5 -right-1.5 hidden group-hover:flex gap-0.5">
-                    <button
-                      class="w-4 h-4 rounded-full bg-white shadow text-gray-400 hover:text-blue-500 text-[8px] flex items-center justify-center"
-                      @click.stop="openEditor(pet)"
-                    >✏️</button>
-                    <button
-                      class="w-4 h-4 rounded-full bg-white shadow text-gray-400 hover:text-red-500 text-[8px] flex items-center justify-center"
-                      @click.stop="deleteCustomPetConfirm(pet.id)"
-                    >✕</button>
-                  </div>
-                </button>
-              </div>
-            </template>
-          </SettingsCard>
+          <button
+            class="w-full border-2 border-dashed border-gray-300/40 rounded-xl py-3 text-sm text-gray-400 hover:text-blue-500 hover:border-blue-300/60 transition bg-white/20"
+            @click="petPackageInputRef?.click()"
+          >
+            + 导入宠物包 (.bushuila-pet / .zip)
+          </button>
+          <input type="file" accept=".bushuila-pet,.zip" ref="petPackageInputRef" class="hidden" @change="handlePetPackageImport" />
+
+          <div class="rounded-xl p-3 bg-white/20">
+            <p class="text-xs text-gray-400">💡 点击宠物卡片选择你的精灵。支持导入 .bushuila-pet 宠物包文件。</p>
+          </div>
 
           <SettingsCard title="当前预览">
             <div class="flex flex-col items-center gap-4 py-3">
@@ -395,13 +390,6 @@ function deleteCustomPetConfirm(id: string) {
       </div>
     </div>
   </div>
-
-  <CustomPetEditor
-    v-if="showEditor"
-    :pet="editingPet"
-    @save="handleEditorSave"
-    @cancel="showEditor = false"
-  />
 </template>
 
 <style scoped>

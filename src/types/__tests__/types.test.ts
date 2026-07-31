@@ -3,9 +3,10 @@ import {
   resolvePetConfig,
   convertCustomPetToResolvedConfig,
   convertPresetToResolvedConfig,
+  convertPetPackageToResolvedConfig,
   PET_THEMES,
 } from '../index'
-import type { CustomPetConfig, PetType } from '../index'
+import type { CustomPetConfig, PetType, PetPackage } from '../index'
 
 const sampleCustomPet: CustomPetConfig = {
   id: 'test-pet',
@@ -102,5 +103,77 @@ describe('resolvePetConfig', () => {
     const result = resolvePetConfig('custom', undefined, [])
 
     expect(result.id).toBe('drop')
+  })
+})
+
+describe('convertPetPackageToResolvedConfig', () => {
+  const emojiPackage: PetPackage = {
+    id: 'drop',
+    displayName: '小水滴',
+    description: '可爱的小水滴',
+    version: '1.0',
+    fallbackEmoji: '💧',
+    stateMap: {
+      idle: { row: 0, frames: 1 },
+      reminding: { row: 0, frames: 1 },
+      snoozing: { row: 0, frames: 1 },
+    },
+  }
+
+  const spritesheetPackage: PetPackage = {
+    id: 'yuexinmiao1',
+    displayName: '月薪喵',
+    description: 'A cartoon kitten',
+    version: '1.0',
+    spritesheetPath: 'spritesheet.webp',
+    fallbackEmoji: '🐱',
+    frameWidth: 192,
+    frameHeight: 234,
+    stateMap: {
+      idle: { row: 0, frames: 6, fps: 6, loop: true },
+      reminding: { row: 1, frames: 8, fps: 10, loop: true },
+      snoozing: { row: 3, frames: 5, fps: 4, loop: true },
+    },
+  }
+
+  it('should convert emoji package to resolved config', () => {
+    const result = convertPetPackageToResolvedConfig(emojiPackage)
+
+    expect(result.id).toBe('drop')
+    expect(result.label).toBe('小水滴')
+    expect(result.isCustom).toBe(false)
+    expect(result.isCodex).toBe(false)
+    expect(result.spritesheetUrl).toBeUndefined()
+    expect(result.emoji.idle).toBe('💧')
+    expect(result.packageStateMap).toBeDefined()
+    expect(result.packageFrameWidth).toBeUndefined()
+  })
+
+  it('should convert spritesheet package to resolved config', () => {
+    const result = convertPetPackageToResolvedConfig(spritesheetPackage, '/pets/builtin/yuexinmiao1/spritesheet.webp')
+
+    expect(result.id).toBe('yuexinmiao1')
+    expect(result.label).toBe('月薪喵')
+    expect(result.isCodex).toBe(true)
+    expect(result.spritesheetUrl).toBe('/pets/builtin/yuexinmiao1/spritesheet.webp')
+    expect(result.emoji.idle).toBe('🐱')
+    expect(result.packageStateMap).toBeDefined()
+    expect(result.packageFrameWidth).toBe(192)
+    expect(result.packageFrameHeight).toBe(234)
+    expect(result.packageStateMap?.idle.fps).toBe(6)
+    expect(result.packageStateMap?.reminding.frames).toBe(8)
+  })
+
+  it('should use provided spritesheetUrl', () => {
+    const result = convertPetPackageToResolvedConfig(spritesheetPackage, 'asset://localhost/path/sprite.webp')
+
+    expect(result.spritesheetUrl).toBe('asset://localhost/path/sprite.webp')
+  })
+
+  it('should not set spritesheetUrl when not provided', () => {
+    const result = convertPetPackageToResolvedConfig(emojiPackage)
+
+    expect(result.spritesheetUrl).toBeUndefined()
+    expect(result.isCodex).toBe(false)
   })
 })

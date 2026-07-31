@@ -1,0 +1,12 @@
+{
+  "id": "cat",
+  "displayName": "小猫咪",
+  "description": "软萌的小猫咪，陪你度过每一天",
+  "version": "1.0",
+  "fallbackEmoji": "🐱",
+  "stateMap": {
+    "idle": { "row": 0, "frames": 1 },
+    "reminding": { "row": 0, "frames": 1 },
+    "snoozing": { "row": 0, "frames": 1 }
+  }
+}

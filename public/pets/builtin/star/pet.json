@@ -1,0 +1,12 @@
+{
+  "id": "star",
+  "displayName": "小星星",
+  "description": "闪亮的小星星，照亮你的每一天",
+  "version": "1.0",
+  "fallbackEmoji": "🌟",
+  "stateMap": {
+    "idle": { "row": 0, "frames": 1 },
+    "reminding": { "row": 0, "frames": 1 },
+    "snoozing": { "row": 0, "frames": 1 }
+  }
+}

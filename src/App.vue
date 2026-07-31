@@ -75,6 +75,7 @@ function handleReload() {
 }
 
 onMounted(() => {
+  store.loadBuiltinPets()
   store.migrateVoices()
   scheduleReminder()
 })

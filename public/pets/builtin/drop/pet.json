@@ -1,0 +1,12 @@
+{
+  "id": "drop",
+  "displayName": "小水滴",
+  "description": "可爱的小水滴精灵，提醒你按时补水",
+  "version": "1.0",
+  "fallbackEmoji": "💧",
+  "stateMap": {
+    "idle": { "row": 0, "frames": 1 },
+    "reminding": { "row": 0, "frames": 1 },
+    "snoozing": { "row": 0, "frames": 1 }
+  }
+}

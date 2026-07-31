@@ -89,6 +89,16 @@ function getActionDuration(action: MicroAction): number {
 
 function randomAction() {
   if (unmounted) return
+
+  // Codex 精灵：随机播放 spritesheet 动作
+  if (theme.value.isCodex && spriteAnim.availableActions.value.length > 0) {
+    const name = spriteAnim.availableActions.value[
+      Math.floor(Math.random() * spriteAnim.availableActions.value.length)
+    ]
+    spriteAnim.playOnce(name)
+    return
+  }
+
   const actions: MicroAction[] = [
     'look', 'blink', 'happy', 'thinking',
     'working', 'dancing', 'sleeping', 'stretching',
@@ -96,6 +106,26 @@ function randomAction() {
   currentAction.value = actions[Math.floor(Math.random() * actions.length)]
   setThoughtEmoji(currentAction.value)
   setTimeout(() => { if (!unmounted) currentAction.value = 'idle' }, getActionDuration(currentAction.value))
+}
+
+/** 点击精灵：随机触发一个动作（Codex 精灵播放 spritesheet 动作，emoji 精灵做微动作） */
+function triggerAction() {
+  if (unmounted || props.state !== 'idle') return
+  if (theme.value.isCodex) {
+    if (spriteAnim.availableActions.value.length > 0) {
+      const name = spriteAnim.availableActions.value[
+        Math.floor(Math.random() * spriteAnim.availableActions.value.length)
+      ]
+      spriteAnim.playOnce(name)
+    }
+  } else {
+    randomAction()
+  }
+}
+
+function handleClick() {
+  triggerAction()
+  emit('click')
 }
 
 function scheduleWander() {
@@ -125,20 +155,18 @@ const spriteLoadFailed = ref(false)
 /** 根据当前宠物主题更新精灵表配置 */
 watch(() => [theme.value.isCodex, theme.value.spritesheetUrl], () => {
   spriteLoadFailed.value = false
-  if (!theme.value.isCodex || !theme.value.spritesheetUrl) {
+  if (!theme.value.isCodex || !theme.value.spritesheetUrl || !theme.value.packageStateMap) {
     spriteAnim.setConfig(null)
     return
   }
   spriteAnim.setConfig({
     spritesheetUrl: theme.value.spritesheetUrl,
-    frameWidth: 192,
-    frameHeight: 234,
-    // 所有动画统一 192×234 帧，不裁剪，保持相同显示大小
-    // 帧内的透明空白在透明窗口下不可见
+    frameWidth: theme.value.packageFrameWidth ?? 192,
+    frameHeight: theme.value.packageFrameHeight ?? 234,
     animations: {
-      idle:      { row: 0, frames: 6, fps: 6,  loop: true },
-      reminding: { row: 1, frames: 8, fps: 10, loop: true },
-      snoozing:  { row: 3, frames: 5, fps: 4,  loop: true },
+      idle:      theme.value.packageStateMap.idle,
+      reminding: theme.value.packageStateMap.reminding,
+      snoozing:  theme.value.packageStateMap.snoozing,
     },
   })
 }, { immediate: true })
@@ -233,7 +261,7 @@ function openSettings(e: MouseEvent) {
     style="will-change: transform"
     @mousedown="startDrag"
     @contextmenu="handleContextMenu"
-    @click="emit('click')"
+    @click="handleClick"
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
   >

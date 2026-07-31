@@ -30,6 +30,39 @@ export interface CustomVoice {
 
 export type SpriteState = 'idle' | 'reminding' | 'snoozing'
 
+// --- 宠物包规范 v1.0 ---
+
+export interface AnimationConfig {
+  row: number
+  frames: number
+  fps?: number
+  loop?: boolean
+  sourceY?: number
+  sourceH?: number
+}
+
+export interface PetPackage {
+  id: string
+  displayName: string
+  description: string
+  author?: string
+  version: string
+  spritesheetPath?: string
+  fallbackEmoji: string
+  frameWidth?: number
+  frameHeight?: number
+  stateMap: {
+    idle: AnimationConfig
+    reminding: AnimationConfig
+    snoozing: AnimationConfig
+  }
+  microActions?: string[]
+  /** 宠物包来源：builtin | imported */
+  source?: 'builtin' | 'imported'
+  /** 导入宠物的本地存储路径 */
+  localPath?: string
+}
+
 // --- 自定义精灵系统 ---
 
 /** 待机时的微动作 */
@@ -65,13 +98,12 @@ export interface CustomPetConfig {
   createdAt: number
 }
 
-/** 解析后的统一配置（预设、自定义、codex 共用） */
+/** 解析后的统一配置（预设、自定义、宠物包 共用） */
 export interface ResolvedPetConfig {
   id: string
   label: string
   isCustom: boolean
   isCodex: boolean
-  /** codex 宠物的 spritesheet 路径（相对于 public/） */
   spritesheetUrl?: string
   emoji: {
     idle: string
@@ -83,6 +115,10 @@ export interface ResolvedPetConfig {
     reminding: { class: string | null; style: string | null }
     snoozing: { class: string | null; style: string | null }
   }
+  /** 来自宠物包的精灵表动画配置 */
+  packageStateMap?: PetPackage['stateMap']
+  packageFrameWidth?: number
+  packageFrameHeight?: number
 }
 
 export interface PetThemeConfig {
@@ -140,6 +176,32 @@ export function convertCustomPetToResolvedConfig(custom: CustomPetConfig): Resol
       reminding: { class: null, style: `linear-gradient(135deg, ${custom.colors.reminding[0]}, ${custom.colors.reminding[1]})` },
       snoozing: { class: null, style: `linear-gradient(135deg, ${custom.colors.snoozing[0]}, ${custom.colors.snoozing[1]})` },
     },
+  }
+}
+
+/** 将宠物包转换为统一配置（spritesheetUrl 由调用方解析，以区分内置/导入来源） */
+export function convertPetPackageToResolvedConfig(pkg: PetPackage, spritesheetUrl?: string): ResolvedPetConfig {
+  const isSpritesheet = !!pkg.spritesheetPath
+
+  return {
+    id: pkg.id,
+    label: pkg.displayName,
+    isCustom: false,
+    isCodex: isSpritesheet,
+    spritesheetUrl,
+    emoji: {
+      idle: pkg.fallbackEmoji,
+      reminding: pkg.fallbackEmoji,
+      snoozing: pkg.fallbackEmoji,
+    },
+    gradients: {
+      idle: { class: 'from-gray-200 to-gray-300', style: null },
+      reminding: { class: 'from-red-200 to-orange-300', style: null },
+      snoozing: { class: 'from-purple-200 to-purple-300', style: null },
+    },
+    packageStateMap: pkg.stateMap,
+    packageFrameWidth: pkg.frameWidth,
+    packageFrameHeight: pkg.frameHeight,
   }
 }
 

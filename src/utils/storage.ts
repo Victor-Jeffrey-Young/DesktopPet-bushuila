@@ -21,6 +21,16 @@ export async function readVoiceFile(filePath: string): Promise<ArrayBuffer> {
   return data.buffer
 }
 
+export async function savePetSprite(id: string, spritesheetPath: string, data: Uint8Array): Promise<string> {
+  const dir = await join(await appDataDir(), 'pets', id)
+  if (!(await exists(dir))) {
+    await mkdir(dir, { recursive: true })
+  }
+  const filePath = await join(dir, spritesheetPath)
+  await writeFile(filePath, data)
+  return filePath
+}
+
 export async function deleteVoiceFile(filePath: string): Promise<void> {
   try {
     await remove(filePath)

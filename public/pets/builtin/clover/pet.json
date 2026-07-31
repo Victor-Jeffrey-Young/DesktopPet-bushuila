@@ -1,0 +1,12 @@
+{
+  "id": "clover",
+  "displayName": "小幸运",
+  "description": "四叶草精灵，为你带来满满幸运",
+  "version": "1.0",
+  "fallbackEmoji": "🍀",
+  "stateMap": {
+    "idle": { "row": 0, "frames": 1 },
+    "reminding": { "row": 0, "frames": 1 },
+    "snoozing": { "row": 0, "frames": 1 }
+  }
+}
