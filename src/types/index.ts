@@ -23,7 +23,9 @@ export interface DrinkRecord {
 export interface CustomVoice {
   id: string
   name: string
-  dataUrl: string
+  filePath: string
+  /** @deprecated old field, kept for migration only */
+  dataUrl?: string
 }
 
 export type SpriteState = 'idle' | 'reminding' | 'snoozing'
@@ -91,6 +93,9 @@ export interface PetThemeConfig {
     reminding: string
     snoozing: string
   }
+  codex?: {
+    spritesheetUrl: string
+  }
 }
 
 /** codex 宠物的精灵表配置 */
@@ -147,8 +152,8 @@ export function convertPresetToResolvedConfig(
     id: key,
     label: config.label,
     isCustom: false,
-    isCodex: key === 'yuexinmiao1',
-    spritesheetUrl: key === 'yuexinmiao1' ? '/pets/yuexinmiao1/spritesheet.webp' : undefined,
+    isCodex: !!config.codex,
+    spritesheetUrl: config.codex?.spritesheetUrl,
     emoji: config.emoji,
     gradients: {
       idle: { class: config.colors.idle, style: null },
@@ -213,5 +218,6 @@ export const PET_THEMES: Record<PetType, PetThemeConfig> = {
     label: '月薪喵',
     emoji: { idle: '🐱', reminding: '😾', snoozing: '😴' },
     colors: { idle: 'from-amber-200 to-orange-300', reminding: 'from-red-300 to-rose-400', snoozing: 'from-slate-200 to-gray-300' },
+    codex: { spritesheetUrl: '/pets/yuexinmiao1/spritesheet.webp' },
   },
 }

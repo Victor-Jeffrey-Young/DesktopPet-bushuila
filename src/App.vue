@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, onErrorCaptured } from 'vue'
 import { ref } from 'vue'
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import SpritePet from './components/SpritePet.vue'
@@ -8,21 +8,36 @@ import ReminderBubble from './components/ReminderBubble.vue'
 import { useAppStore } from './stores/app'
 import { useReminderTimer } from './composables/useReminderTimer'
 import { useAudio } from './composables/useAudio'
+import { readVoiceFile } from './utils/storage'
 
 const store = useAppStore()
 const { scheduleReminder, snooze: snoozeTimer, countdown, formatCountdown } = useReminderTimer()
 const { play: playAudio, playBeep } = useAudio()
 const showSettings = ref(false)
 const showBubble = ref(false)
+const hasError = ref(false)
 const appWindow = getCurrentWindow()
 
-// 提醒时播放语音
+onErrorCaptured((err) => {
+  hasError.value = true
+  console.error('[Component Error]', err)
+  return false
+})
+
+async function playVoiceFromPath(filePath: string) {
+  const buffer = await readVoiceFile(filePath)
+  await playAudio(buffer)
+}
+
 watch(() => store.spriteState, (state) => {
   if (state !== 'reminding') return
 
   if (store.settings.voiceSource === 'custom' && store.customVoices.length > 0) {
     const idx = Math.floor(Math.random() * store.customVoices.length)
-    playAudio(store.customVoices[idx].dataUrl)
+    const voice = store.customVoices[idx]
+    if (voice.filePath) {
+      playVoiceFromPath(voice.filePath)
+    }
   } else {
     playBeep(800, 300)
   }
@@ -55,13 +70,30 @@ function handleSnooze() {
   snoozeTimer()
 }
 
+function handleReload() {
+  globalThis.location.reload()
+}
+
 onMounted(() => {
+  store.migrateVoices()
   scheduleReminder()
 })
 </script>
 
 <template>
-  <div class="w-full h-full flex items-center justify-center relative">
+  <div v-if="hasError" class="w-full h-full flex items-center justify-center">
+    <div class="text-center space-y-2">
+      <span class="text-3xl">😵</span>
+      <p class="text-sm text-white/70">精灵遇到了问题</p>
+      <button
+        class="text-xs text-white/50 underline"
+        @click="handleReload"
+      >
+        重新加载
+      </button>
+    </div>
+  </div>
+  <div v-else class="w-full h-full flex items-center justify-center relative">
     <SpritePet
       :state="store.spriteState"
       :countdown="formatCountdown(countdown)"

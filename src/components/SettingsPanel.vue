@@ -124,25 +124,21 @@ function deleteCustomPetConfirm(id: string) {
   }
 }
 
-async function handleFileImport(e: Event) {
-  const input = e.target as HTMLInputElement
-  const files = input.files
-  if (!files || files.length === 0) return
-  for (const file of files) {
-    try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-      store.addCustomVoice(file.name, dataUrl)
-    } catch (err) {
-      console.error('导入语音失败:', file.name, err)
+  async function handleFileImport(e: Event) {
+    const input = e.target as HTMLInputElement
+    const files = input.files
+    if (!files || files.length === 0) return
+    for (const file of files) {
+      try {
+        const buffer = await file.arrayBuffer()
+        const data = new Uint8Array(buffer)
+        await store.addCustomVoice(file.name, data)
+      } catch (err) {
+        console.error('导入语音失败:', file.name, err)
+      }
     }
+    input.value = ''
   }
-  input.value = ''
-}
 </script>
 
 <template>

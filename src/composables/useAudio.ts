@@ -12,12 +12,24 @@ function getCtx(): AudioContext {
 export function useAudio() {
   const isPlaying = ref(false)
 
-  async function play(source: string) {
+  async function ensureResumed() {
+    if (audioCtx.value?.state === 'suspended') {
+      await audioCtx.value.resume()
+    }
+  }
+
+  async function play(source: ArrayBuffer | string) {
+    await ensureResumed()
     isPlaying.value = true
     try {
       const ctx = getCtx()
-      const resp = await fetch(source)
-      const buf = await resp.arrayBuffer()
+      let buf: ArrayBuffer
+      if (source instanceof ArrayBuffer) {
+        buf = source
+      } else {
+        const resp = await fetch(source)
+        buf = await resp.arrayBuffer()
+      }
       const decoded = await ctx.decodeAudioData(buf)
       const src = ctx.createBufferSource()
       src.buffer = decoded
@@ -30,7 +42,8 @@ export function useAudio() {
     }
   }
 
-  function playBeep(frequency = 800, duration = 200) {
+  async function playBeep(frequency = 800, duration = 200) {
+    await ensureResumed()
     isPlaying.value = true
     const ctx = getCtx()
     const osc = ctx.createOscillator()
@@ -45,5 +58,5 @@ export function useAudio() {
     setTimeout(() => { isPlaying.value = false }, duration)
   }
 
-  return { isPlaying, play, playBeep }
+  return { isPlaying, play, playBeep, ensureResumed }
 }

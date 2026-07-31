@@ -2,11 +2,13 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ReminderSettings, DrinkRecord, CustomVoice, SpriteState, CustomPetConfig } from '../types'
 import { resolvePetConfig } from '../types'
+import { saveVoiceFile, deleteVoiceFile, dataUrlToUint8Array } from '../utils/storage'
 
 const STORAGE_KEY_SETTINGS = 'bushuila_settings'
 const STORAGE_KEY_VOICES = 'bushuila_custom_voices'
 const STORAGE_KEY_RECORDS = 'bushuila_drink_records'
 const STORAGE_KEY_CUSTOM_PETS = 'bushuila_custom_pets'
+const RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
 const DEFAULT_SETTINGS: ReminderSettings = {
   intervalMinutes: 30,
@@ -60,7 +62,10 @@ export const useAppStore = defineStore('app', () => {
   const settings = ref<ReminderSettings>(loadSettings())
 
   const spriteState = ref<SpriteState>('idle')
-  const drinkRecords = ref<DrinkRecord[]>(loadFromStorage<DrinkRecord>(STORAGE_KEY_RECORDS))
+  const drinkRecords = ref<DrinkRecord[]>(
+    loadFromStorage<DrinkRecord>(STORAGE_KEY_RECORDS)
+      .filter(r => r.timestamp >= Date.now() - RETENTION_MS),
+  )
   const customVoices = ref<CustomVoice[]>(loadFromStorage<CustomVoice>(STORAGE_KEY_VOICES))
   const customPets = ref<CustomPetConfig[]>(loadFromStorage<CustomPetConfig>(STORAGE_KEY_CUSTOM_PETS))
   const nextReminderTime = ref<number>(Date.now() + settings.value.intervalMinutes * 60 * 1000)
@@ -88,6 +93,8 @@ export const useAppStore = defineStore('app', () => {
       timestamp: Date.now(),
       amount,
     })
+    const cutoff = Date.now() - RETENTION_MS
+    drinkRecords.value = drinkRecords.value.filter(r => r.timestamp >= cutoff)
     saveToStorage(STORAGE_KEY_RECORDS, drinkRecords.value)
   }
 
@@ -108,16 +115,18 @@ export const useAppStore = defineStore('app', () => {
     saveSettingsToStorage(settings.value)
   }
 
-  function addCustomVoice(name: string, dataUrl: string) {
-    customVoices.value.push({
-      id: crypto.randomUUID(),
-      name,
-      dataUrl,
-    })
+  async function addCustomVoice(name: string, data: Uint8Array) {
+    const id = crypto.randomUUID()
+    const filePath = await saveVoiceFile(id, data)
+    customVoices.value.push({ id, name, filePath })
     saveToStorage(STORAGE_KEY_VOICES, customVoices.value)
   }
 
-  function removeCustomVoice(id: string) {
+  async function removeCustomVoice(id: string) {
+    const voice = customVoices.value.find(v => v.id === id)
+    if (voice?.filePath) {
+      await deleteVoiceFile(voice.filePath)
+    }
     customVoices.value = customVoices.value.filter(v => v.id !== id)
     saveToStorage(STORAGE_KEY_VOICES, customVoices.value)
   }
@@ -153,6 +162,23 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  async function migrateVoices() {
+    const needsMigration = customVoices.value.some(v => v.dataUrl && !v.filePath)
+    if (!needsMigration) return
+    for (const voice of customVoices.value) {
+      if (voice.dataUrl && !voice.filePath) {
+        try {
+          const bytes = dataUrlToUint8Array(voice.dataUrl)
+          voice.filePath = await saveVoiceFile(voice.id, bytes)
+          delete voice.dataUrl
+        } catch (e) {
+          console.error('Voice migration failed:', voice.id, e)
+        }
+      }
+    }
+    saveToStorage(STORAGE_KEY_VOICES, customVoices.value)
+  }
+
   return {
     settings,
     spriteState,
@@ -172,5 +198,6 @@ export const useAppStore = defineStore('app', () => {
     createCustomPet,
     updateCustomPet,
     deleteCustomPet,
+    migrateVoices,
   }
 })

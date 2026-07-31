@@ -38,6 +38,7 @@ const showButtons = ref(false)
 let hideButtonsTimer: ReturnType<typeof setTimeout> | null = null
 let wanderTimer: ReturnType<typeof setTimeout> | null = null
 let actionTimer: ReturnType<typeof setTimeout> | null = null
+let unmounted = false
 const currentAction = ref<MicroAction>('idle')
 const thoughtEmoji = ref('')
 
@@ -49,13 +50,13 @@ const activeCustomPet = computed(() =>
 )
 
 function randomPosition() {
-  if (isHovered.value || props.state !== 'idle') return
+  if (unmounted || isHovered.value || props.state !== 'idle') return
   const maxX = 60
   const maxY = 80
   wanderX.value = (Math.random() - 0.5) * maxX * 2
   wanderY.value = (Math.random() - 0.5) * maxY * 2
   isWalking.value = true
-  setTimeout(() => { isWalking.value = false }, 600)
+  setTimeout(() => { if (!unmounted) isWalking.value = false }, 600)
 }
 
 function setThoughtEmoji(action: MicroAction) {
@@ -87,17 +88,19 @@ function getActionDuration(action: MicroAction): number {
 }
 
 function randomAction() {
+  if (unmounted) return
   const actions: MicroAction[] = [
     'look', 'blink', 'happy', 'thinking',
     'working', 'dancing', 'sleeping', 'stretching',
   ]
   currentAction.value = actions[Math.floor(Math.random() * actions.length)]
   setThoughtEmoji(currentAction.value)
-  setTimeout(() => { currentAction.value = 'idle' }, getActionDuration(currentAction.value))
+  setTimeout(() => { if (!unmounted) currentAction.value = 'idle' }, getActionDuration(currentAction.value))
 }
 
 function scheduleWander() {
   wanderTimer = setTimeout(() => {
+    if (unmounted) return
     if (props.state === 'idle') randomPosition()
     scheduleWander()
   }, 2000 + Math.random() * 4000)
@@ -105,6 +108,7 @@ function scheduleWander() {
 
 function scheduleAction() {
   actionTimer = setTimeout(() => {
+    if (unmounted) return
     if (props.state === 'idle' && !isHovered.value) randomAction()
     scheduleAction()
   }, 3000 + Math.random() * 5000)
@@ -174,6 +178,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  unmounted = true
   if (wanderTimer) clearTimeout(wanderTimer)
   if (actionTimer) clearTimeout(actionTimer)
   spriteAnim.dispose()
@@ -207,7 +212,7 @@ function onMouseEnter() {
 function onMouseLeave() {
   isHovered.value = false
   hideButtonsTimer = setTimeout(() => {
-    showButtons.value = false
+    if (!unmounted) showButtons.value = false
   }, 1500)
 }
 
