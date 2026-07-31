@@ -11,7 +11,8 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:ci": "vitest run && vue-tsc -b --noEmit"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

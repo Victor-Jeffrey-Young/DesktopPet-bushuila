@@ -3,6 +3,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useWindowDrag } from '../composables/useWindowDrag'
 import { useAppStore } from '../stores/app'
 import { useSpriteAnimation } from '../composables/useSpriteAnimation'
+import type { DiagnosticsSnapshot } from '../composables/useSpriteAnimation'
+import DebugOverlay from './DebugOverlay.vue'
+import { LAYOUT, clampWanderBounds, clampButtonPos } from '../config/layout'
 import type { MicroAction, CodexSpriteConfig } from '../types'
 
 const props = defineProps<{
@@ -53,34 +56,24 @@ function randomPosition() {
   if (unmounted || isHovered.value || props.state !== 'idle') return
   const winW = window.innerWidth
   const winH = window.innerHeight
-  const PET_HALF = 56
-  const COUNTDOWN_H = 36
-  const EDGE = 8
   // 各方向允许移动的最大距离（保证精灵+倒计时不超出窗口）
-  const maxX = Math.max(winW / 2 - PET_HALF - EDGE, 10)
-  const maxUp = Math.max((winH * PET_VERTICAL_PCT) / 100 - PET_HALF - EDGE, 0)
-  const maxDown = Math.max(winH - (winH * PET_VERTICAL_PCT) / 100 - PET_HALF - COUNTDOWN_H - EDGE, 10)
+  const { maxX, maxUp, maxDown } = clampWanderBounds(winW, winH)
   wanderX.value = -maxX + Math.random() * maxX * 2
   wanderY.value = -maxUp + Math.random() * (maxUp + maxDown)
   isWalking.value = true
   setTimeout(() => { if (!unmounted) isWalking.value = false }, 600)
 }
 
-/** 移动时播放 running/walking 动画，停下回到 idle */
-let moveAnimName: string | null = null
+/** 移动时播放 running/walking 动画（moving 状态循环），停下回到 idle */
 watch(isWalking, (walking) => {
   if (!theme.value.isCodex || !spriteAnim.isLoaded.value) return
   if (walking) {
     const name = spriteAnim.availableActions.value.find(a => a === 'running' || a === 'walking')
-    if (name) {
-      moveAnimName = name
-      spriteAnim.playLoop(name)
-    }
+    if (name) spriteAnim.play(name, { loop: true })
   } else {
-    if (moveAnimName && spriteAnim.currentState.value === moveAnimName) {
-      spriteAnim.setState('idle')
+    if (spriteAnim.machineState.value === 'moving') {
+      spriteAnim.play('idle')
     }
-    moveAnimName = null
   }
 })
 
@@ -120,7 +113,7 @@ function randomAction() {
     const idleActions = spriteAnim.availableActions.value.filter(a => a !== 'running' && a !== 'walking')
     if (idleActions.length === 0) return
     const name = idleActions[Math.floor(Math.random() * idleActions.length)]
-    spriteAnim.playOnce(name)
+    spriteAnim.play(name)
     return
   }
 
@@ -133,22 +126,13 @@ function randomAction() {
   setTimeout(() => { if (!unmounted) currentAction.value = 'idle' }, getActionDuration(currentAction.value))
 }
 
-const PET_VERTICAL_PCT = 32
-
-/** 按钮位置：优先精灵右缘 +8px，右侧空间不足时翻转到左侧，clamp 在窗口内 */
+/** 按钮位置：优先精灵右缘，右侧空间不足时翻转到左侧，clamp 在窗口内（逻辑见 config/layout） */
 const buttonsStyle = computed(() => {
   const winW = window.innerWidth
   const winH = window.innerHeight
   const petCenterX = winW / 2 + wanderX.value
-  const petCenterY = (winH * PET_VERTICAL_PCT) / 100 + wanderY.value
-  const BTN_W = 28
-  const GAP = 8
-  let left = petCenterX + 56 + GAP
-  if (left + BTN_W > winW - 4) {
-    left = petCenterX - 56 - GAP - BTN_W
-  }
-  left = Math.min(Math.max(left, 4), winW - BTN_W - 4)
-  const top = Math.min(Math.max(petCenterY - 32, 4), winH - 64 - 4)
+  const petCenterY = (winH * LAYOUT.petVerticalPct) / 100 + wanderY.value
+  const { left, top } = clampButtonPos(petCenterX, petCenterY, winW, winH)
   return { left: `${left}px`, top: `${top}px` }
 })
 
@@ -160,7 +144,7 @@ function triggerAction() {
       const name = spriteAnim.availableActions.value[
         Math.floor(Math.random() * spriteAnim.availableActions.value.length)
       ]
-      spriteAnim.playOnce(name)
+      spriteAnim.play(name)
     }
   } else {
     randomAction()
@@ -170,6 +154,16 @@ function triggerAction() {
 function handleClick() {
   triggerAction()
   emit('click')
+}
+
+// --- Debug 浮层（双击精灵打开） ---
+const showDebug = ref(false)
+const debugSnapshot = computed<DiagnosticsSnapshot | null>(() =>
+  spriteAnim.isLoaded.value ? spriteAnim.getDiagnostics() : null,
+)
+
+function handleDoubleClick() {
+  showDebug.value = !showDebug.value
 }
 
 function scheduleWander() {
@@ -199,6 +193,10 @@ const spriteLoadFailed = ref(false)
 /** 根据当前宠物主题更新精灵表配置 */
 watch(() => [theme.value.isCodex, theme.value.spritesheetUrl], () => {
   spriteLoadFailed.value = false
+  if (canvasRef.value) {
+    const ctx = canvasRef.value.getContext('2d')
+    ctx?.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
+  }
   if (!theme.value.isCodex || !theme.value.spritesheetUrl || !theme.value.packageStateMap) {
     spriteAnim.setConfig(null)
     return
@@ -216,10 +214,10 @@ watch(() => [theme.value.isCodex, theme.value.spritesheetUrl], () => {
   })
 }, { immediate: true })
 
-/** 状态同步：spriteState → 动画状态 */
+/** 状态同步：spriteState → 动画状态（业务优先级，可抢占任何动画） */
 watch(() => props.state, (state) => {
   if (!theme.value.isCodex) return
-  spriteAnim.setState(state)
+  spriteAnim.play(state, { priority: 'business' })
 })
 
 /** 每帧动画更新后重绘 canvas */
@@ -245,13 +243,22 @@ watch(() => spriteAnim.loadError.value, (err) => {
   }
 })
 
+/** 窗口 resize（设置面板开关等）时，将 wander 偏移 clamp 回新窗口边界，避免宠物被裁剪/移出窗口 */
+function onWindowResize() {
+  const { maxX, maxUp, maxDown } = clampWanderBounds(window.innerWidth, window.innerHeight)
+  wanderX.value = Math.min(Math.max(wanderX.value, -maxX), maxX)
+  wanderY.value = Math.min(Math.max(wanderY.value, -maxUp), maxDown)
+}
+
 onMounted(() => {
+  window.addEventListener('resize', onWindowResize)
   scheduleWander()
   scheduleAction()
 })
 
 onUnmounted(() => {
   unmounted = true
+  window.removeEventListener('resize', onWindowResize)
   if (wanderTimer) clearTimeout(wanderTimer)
   if (actionTimer) clearTimeout(actionTimer)
   spriteAnim.dispose()
@@ -307,6 +314,7 @@ function openSettings(e: MouseEvent) {
     @mousedown="startDrag"
     @contextmenu="handleContextMenu"
     @click="handleClick"
+    @dblclick="handleDoubleClick"
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
   >
@@ -315,21 +323,21 @@ function openSettings(e: MouseEvent) {
       class="absolute flex flex-col items-center"
       :style="{
         left: '50%',
-        top: PET_VERTICAL_PCT + '%',
+        top: LAYOUT.petVerticalPct + '%',
         transform: `translate(calc(-50% + ${wanderX}px), calc(-50% + ${wanderY}px))`,
         transition: isWalking ? 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0.3s ease',
       }"
     >
       <div
         :class="[
-          'w-28 h-28 rounded-full flex items-center justify-center relative overflow-hidden',
+          'w-28 h-28 flex items-center justify-center relative',
+          theme.isCodex ? 'bg-transparent' : 'rounded-full overflow-hidden',
           !theme.isCodex && state === 'idle' && !theme.isCustom && theme.gradients.idle.class,
           !theme.isCodex && state === 'idle' && idleAnimClass,
           !theme.isCodex && state === 'reminding' && !theme.isCustom && theme.gradients.reminding.class,
           !theme.isCodex && state === 'reminding' && 'animate-remind',
           !theme.isCodex && state === 'snoozing' && !theme.isCustom && theme.gradients.snoozing.class,
           !theme.isCodex && state === 'snoozing' && 'animate-snooze',
-          theme.isCodex && 'bg-transparent',
         ]"
         :style="theme.isCodex ? undefined : gradientStyle"
       >
@@ -405,6 +413,13 @@ function openSettings(e: MouseEvent) {
         </button>
       </div>
     </div>
+
+    <DebugOverlay
+      v-if="showDebug && debugSnapshot"
+      :diagnostics="debugSnapshot"
+      :image="spriteAnim.image.value"
+      @close="showDebug = false"
+    />
 </template>
 
 <style scoped>
