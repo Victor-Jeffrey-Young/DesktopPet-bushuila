@@ -1,26 +1,23 @@
 <script setup lang="ts">
-import { onMounted, watch, onErrorCaptured } from 'vue'
+import { onMounted, watch, onErrorCaptured, onUnmounted } from 'vue'
 import { ref } from 'vue'
-import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import SpritePet from './components/SpritePet.vue'
-import SettingsPanel from './components/SettingsPanel.vue'
 import ReminderBubble from './components/ReminderBubble.vue'
 import { useAppStore } from './stores/app'
 import { useReminderTimer } from './composables/useReminderTimer'
 import { useAudio } from './composables/useAudio'
 import { readVoiceFile } from './utils/storage'
+import { openPanel } from './windows'
 
 const store = useAppStore()
 const { scheduleReminder, snooze: snoozeTimer, countdown, formatCountdown } = useReminderTimer()
 const { play: playAudio, playBeep } = useAudio()
-const showSettings = ref(false)
 const showBubble = ref(false)
 const hasError = ref(false)
-const appWindow = getCurrentWindow()
 
 onErrorCaptured((err) => {
   hasError.value = true
-  console.error('[Component Error]', err)
+  console.error('[Component Error]', err instanceof Error ? err.message : err, err instanceof Error ? err.stack : '')
   return false
 })
 
@@ -45,20 +42,9 @@ watch(() => store.spriteState, (state) => {
   }
 })
 
-async function toggleSettings() {
-  showSettings.value = !showSettings.value
-  if (showSettings.value) {
-    await appWindow.setSize(new LogicalSize(420, 560))
-    await appWindow.center()
-  } else {
-    await appWindow.setSize(new LogicalSize(200, 280))
-  }
-}
-
-async function handleCloseSettings() {
-  showSettings.value = false
-  await appWindow.setSize(new LogicalSize(200, 280))
-  scheduleReminder()
+/** 设置面板：独立窗口，不再改变宠物窗口尺寸 */
+function openSettings() {
+  openPanel('settings')
 }
 
 function handleDismiss() {
@@ -76,10 +62,22 @@ function handleReload() {
   globalThis.location.reload()
 }
 
+/** 设置窗口在 localStorage 写入后同步刷新本窗口 store（storage 事件跨窗口触发） */
+function onStorage(e: StorageEvent) {
+  if (!e.key) return
+  store.reloadFromStorage()
+  if (store.spriteState === 'idle') scheduleReminder()
+}
+
 onMounted(() => {
+  window.addEventListener('storage', onStorage)
   store.loadBuiltinPets()
   store.migrateVoices()
   scheduleReminder()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', onStorage)
 })
 </script>
 
@@ -100,7 +98,7 @@ onMounted(() => {
     <SpritePet
       :state="store.spriteState"
       :countdown="formatCountdown(countdown)"
-      @right-click="toggleSettings"
+      @right-click="openSettings"
       @click="store.spriteState === 'reminding' ? (showBubble = true) : null"
     />
 
@@ -110,7 +108,5 @@ onMounted(() => {
       @dismiss="handleDismiss"
       @snooze="handleSnooze"
     />
-
-    <SettingsPanel v-if="showSettings" @close="handleCloseSettings" />
   </div>
 </template>

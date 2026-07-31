@@ -25,6 +25,7 @@ export interface DiagnosticsSnapshot {
   availableActions: string[]
   frameWidth: number
   frameHeight: number
+  spritesheetUrl?: string
   rows: Array<{ name: string; row: number; frames: number; loop: boolean }>
 }
 
@@ -338,6 +339,7 @@ export function useSpriteAnimation() {
       availableActions: [...availableActions.value],
       frameWidth: c?.frameWidth ?? 0,
       frameHeight: c?.frameHeight ?? 0,
+      spritesheetUrl: c?.spritesheetUrl,
       rows: c ? Object.entries(c.animations).map(([name, anim]) => ({
         name,
         row: anim.row,

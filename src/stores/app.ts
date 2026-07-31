@@ -200,6 +200,15 @@ export const useAppStore = defineStore('app', () => {
     builtinPets.value = await loadAllBuiltinPets()
   }
 
+  /** 从 localStorage 重新加载（设置窗口修改后，主窗口通过 storage 事件调用） */
+  function reloadFromStorage() {
+    settings.value = loadSettings()
+    customPets.value = loadFromStorage<CustomPetConfig>(STORAGE_KEY_CUSTOM_PETS)
+    customVoices.value = loadFromStorage<CustomVoice>(STORAGE_KEY_VOICES)
+    importedPets.value = loadFromStorage<PetPackage>('bushuila_imported_pets')
+    nextReminderTime.value = Date.now() + settings.value.intervalMinutes * 60 * 1000
+  }
+
   function setActivePet(petId: string) {
     const pkg = allPets.value.find(p => p.id === petId)
     if (!pkg) return
@@ -258,6 +267,7 @@ export const useAppStore = defineStore('app', () => {
     deleteCustomPet,
     migrateVoices,
     loadBuiltinPets,
+    reloadFromStorage,
     setActivePet,
     importPetPackage,
     removeImportedPet,

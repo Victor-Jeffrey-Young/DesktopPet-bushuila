@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { emit as emitEvent } from '@tauri-apps/api/event'
 import { useWindowDrag } from '../composables/useWindowDrag'
 import { useAppStore } from '../stores/app'
 import { useSpriteAnimation } from '../composables/useSpriteAnimation'
-import type { DiagnosticsSnapshot } from '../composables/useSpriteAnimation'
-import DebugOverlay from './DebugOverlay.vue'
 import { LAYOUT, clampWanderBounds, clampButtonPos } from '../config/layout'
 import type { MicroAction, CodexSpriteConfig } from '../types'
+import { openPanel } from '../windows'
 
 const props = defineProps<{
   state: 'idle' | 'reminding' | 'snoozing'
@@ -156,14 +156,31 @@ function handleClick() {
   emit('click')
 }
 
-// --- Debug 浮层（双击精灵打开） ---
-const showDebug = ref(false)
-const debugSnapshot = computed<DiagnosticsSnapshot | null>(() =>
-  spriteAnim.isLoaded.value ? spriteAnim.getDiagnostics() : null,
-)
+// --- Debug 浮层（双击精灵打开；窗口临时放大避免遮挡，关闭恢复） ---
+// --- Debug 面板：独立窗口，双击精灵开关；动画状态变化时推送诊断数据 ---
+const debugEnabled = ref(false)
+let pushTimer: ReturnType<typeof setTimeout> | null = null
 
-function handleDoubleClick() {
-  showDebug.value = !showDebug.value
+function pushDiagnostics() {
+  if (!debugEnabled.value || !spriteAnim.isLoaded.value) return
+  emitEvent('debug-diagnostics', spriteAnim.getDiagnostics())
+}
+
+/** 节流推送（动画帧变化频繁，合并为 200ms 一批） */
+function schedulePush() {
+  if (pushTimer) return
+  pushTimer = setTimeout(() => {
+    pushTimer = null
+    pushDiagnostics()
+  }, 200)
+}
+
+async function handleDoubleClick() {
+  debugEnabled.value = !debugEnabled.value
+  if (debugEnabled.value) {
+    await openPanel('debug')
+    pushDiagnostics()
+  }
 }
 
 function scheduleWander() {
@@ -189,6 +206,12 @@ const spriteCanvasSize = 112 // w-28 h-28
 /** 精灵表动画引擎（顶层调用，无生命周期限制） */
 const spriteAnim = useSpriteAnimation()
 const spriteLoadFailed = ref(false)
+
+/** 动画状态变化时推送诊断数据到 Debug 窗口（节流） */
+watch(
+  () => [spriteAnim.machineState.value, spriteAnim.currentAnimName.value, spriteAnim.currentFrame.value, spriteAnim.availableActions.value],
+  schedulePush,
+)
 
 /** 根据当前宠物主题更新精灵表配置 */
 watch(() => [theme.value.isCodex, theme.value.spritesheetUrl], () => {
@@ -258,6 +281,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   unmounted = true
+  if (pushTimer) clearTimeout(pushTimer)
   window.removeEventListener('resize', onWindowResize)
   if (wanderTimer) clearTimeout(wanderTimer)
   if (actionTimer) clearTimeout(actionTimer)
@@ -413,13 +437,6 @@ function openSettings(e: MouseEvent) {
         </button>
       </div>
     </div>
-
-    <DebugOverlay
-      v-if="showDebug && debugSnapshot"
-      :diagnostics="debugSnapshot"
-      :image="spriteAnim.image.value"
-      @close="showDebug = false"
-    />
 </template>
 
 <style scoped>
