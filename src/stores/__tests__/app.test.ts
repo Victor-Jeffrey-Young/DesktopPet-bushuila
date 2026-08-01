@@ -90,12 +90,48 @@ describe('useAppStore', () => {
   })
 
   describe('reminder state', () => {
-    it('should set spriteState to reminding and add drink record', () => {
+    it('should set spriteState to reminding without adding a drink record', () => {
       const store = useAppStore()
       store.startReminder()
 
       expect(store.spriteState).toBe('reminding')
+      expect(store.drinkRecords).toHaveLength(0)
+    })
+
+    it('should add a drink record only after confirmation', () => {
+      const store = useAppStore()
+      store.startReminder()
+      store.confirmDrink()
+
+      expect(store.spriteState).toBe('idle')
       expect(store.drinkRecords).toHaveLength(1)
+    })
+
+    it('should not count a snoozed reminder twice', () => {
+      const store = useAppStore()
+      store.startReminder()
+      store.snooze(5)
+      store.startReminder()
+
+      expect(store.drinkRecords).toHaveLength(0)
+      expect(store.spriteState).toBe('reminding')
+    })
+
+    it('should keep the fourth cup pending across snooze until it is confirmed', () => {
+      const store = useAppStore()
+      store.addDrinkRecord()
+      store.addDrinkRecord()
+      store.addDrinkRecord()
+
+      store.startReminder()
+      store.snooze(5)
+      store.startReminder()
+
+      expect(store.todayCount).toBe(3)
+
+      store.confirmDrink()
+
+      expect(store.todayCount).toBe(4)
     })
 
     it('should set spriteState to snoozing and update nextReminderTime', () => {

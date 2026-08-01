@@ -68,39 +68,34 @@ describe('spritesheetAnalyzer (fixture: ikkun 标准网格)', () => {
   })
 })
 
-describe('spritesheetAnalyzer (fixture: 月薪喵 非标准网格 192×234)', () => {
+describe('spritesheetAnalyzer (fixture: 月薪喵 Codex 标准网格 192×208)', () => {
   const rows = yuexinFixture.rows as RowFixture[]
   const analyses = toAnalyses(rows)
 
   it('frame counts match expected per-row values', () => {
-    const expected = [6, 8, 8, 5, 8, 6, 6, 6]
+    const expected = [6, 8, 8, 4, 5, 8, 6, 6, 6]
     rows.forEach((r, i) => {
       expect(computeFramesFromCounts(r.counts)).toBe(expected[i])
     })
   })
 
-  it('rows 5/6/7 are static (direction rows)', () => {
-    for (const r of [5, 6, 7]) {
+  it('rows 6/7/8 are static (direction rows)', () => {
+    for (const r of [6, 7, 8]) {
       expect(computeIsAnimation(rows[r].diffs)).toBe(false)
     }
-    for (const r of [2, 4]) {
+    for (const r of [0, 1, 2, 3, 4, 5]) {
       expect(computeIsAnimation(rows[r].diffs)).toBe(true)
     }
   })
 
-  it('builds action map with generic names (state rows 0/1/3 + explicit actions rows 2/4)', () => {
-    const used = new Set([0, 1, 3, 2, 4])
-    const { names, extras } = buildActionMap(8, used, analyses, false)
-    expect(names).toEqual([])
-    expect(Object.keys(extras)).toEqual([])
+  it('builds standard actions and skips static rows when state rows are used', () => {
+    const used = new Set([0, 1, 3])
+    const { names, extras } = buildActionMap(9, used, analyses, true)
+    expect(names).toEqual(['running', 'review', 'extra1'])
+    expect(extras.running).toEqual({ row: 2, frames: 8 })
+    expect(extras.review).toEqual({ row: 4, frames: 5 })
+    expect(extras.extra1).toEqual({ row: 5, frames: 8 })
+    expect(extras.extra2).toBeUndefined()
   })
 
-  it('builds action map with generic names when only state rows used', () => {
-    const used = new Set([0, 1, 3])
-    const { names, extras } = buildActionMap(8, used, analyses, false)
-    // row2/row4 是动画（通用名），row5/6/7 静态排除
-    expect(names).toEqual(['action1', 'action2'])
-    expect(extras.action1).toEqual({ row: 2, frames: 8 })
-    expect(extras.action2).toEqual({ row: 4, frames: 8 })
-  })
 })

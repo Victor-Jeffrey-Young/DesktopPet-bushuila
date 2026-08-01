@@ -29,7 +29,9 @@ export function useReminderTimer() {
 
     timerId.value = setTimeout(() => {
       store.startReminder()
-      resetTimer()
+      // 下一次常规提醒应由“已喝水”或“稍后提醒”决定。
+      // 若在这里立刻重置，会在提醒仍显示时创建一轮额外的常规计时。
+      timerId.value = null
     }, Math.max(delay, 0))
   }
 

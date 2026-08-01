@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS: ReminderSettings = {
   autoStart: false,
   systemTray: true,
   voiceSource: 'builtin',
+  theme: 'system',
   petTheme: { pet: 'drop' },
 }
 
@@ -116,7 +117,11 @@ export const useAppStore = defineStore('app', () => {
 
   function startReminder() {
     spriteState.value = 'reminding'
-    addDrinkRecord()
+  }
+
+  function confirmDrink(amount?: number) {
+    addDrinkRecord(amount)
+    spriteState.value = 'idle'
   }
 
   function snooze(minutes?: number) {
@@ -258,6 +263,7 @@ export const useAppStore = defineStore('app', () => {
     todayCount,
     addDrinkRecord,
     startReminder,
+    confirmDrink,
     snooze,
     updateSettings,
     addCustomVoice,

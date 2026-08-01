@@ -8,9 +8,11 @@ import { useReminderTimer } from './composables/useReminderTimer'
 import { useAudio } from './composables/useAudio'
 import { readVoiceFile } from './utils/storage'
 import { openPanel } from './windows'
+import { useTheme } from './composables/useTheme'
 
 const store = useAppStore()
-const { scheduleReminder, snooze: snoozeTimer, countdown, formatCountdown } = useReminderTimer()
+useTheme()
+const { scheduleReminder, resetTimer, snooze: snoozeTimer, countdown, formatCountdown } = useReminderTimer()
 const { play: playAudio, playBeep } = useAudio()
 const showBubble = ref(false)
 const hasError = ref(false)
@@ -49,8 +51,8 @@ function openSettings() {
 
 function handleDismiss() {
   showBubble.value = false
-  store.spriteState = 'idle'
-  scheduleReminder()
+  store.confirmDrink()
+  resetTimer()
 }
 
 function handleSnooze() {
@@ -105,6 +107,7 @@ onUnmounted(() => {
     <ReminderBubble
       v-if="store.spriteState === 'reminding' && showBubble"
       :count="store.todayCount"
+      :snooze-minutes="store.settings.snoozeMinutes"
       @dismiss="handleDismiss"
       @snooze="handleSnooze"
     />

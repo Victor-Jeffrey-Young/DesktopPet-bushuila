@@ -2,8 +2,12 @@
 import { onMounted } from 'vue'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import SettingsPanel from '../components/SettingsPanel.vue'
+import { useAppStore } from '../stores/app'
+import { useTheme } from '../composables/useTheme'
 
 const win = getCurrentWebviewWindow()
+const store = useAppStore()
+useTheme()
 
 function handleClose() {
   win.hide()
@@ -11,11 +15,11 @@ function handleClose() {
 
 onMounted(() => {
   document.title = '设置'
+  store.loadBuiltinPets()
+  store.migrateVoices()
 })
 </script>
 
 <template>
-  <div class="w-full h-full bg-white/90 flex items-center justify-center">
-    <SettingsPanel @close="handleClose" />
-  </div>
+  <SettingsPanel @close="handleClose" />
 </template>

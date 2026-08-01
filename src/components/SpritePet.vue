@@ -399,7 +399,7 @@ function openSettings(e: MouseEvent) {
 
         <!-- 倒计时 -->
       <div
-        v-if="state === 'idle'"
+        v-if="state === 'idle' || state === 'snoozing'"
         class="mt-1.5 px-4 py-1.5 rounded-full bg-black/30 border border-white/15 shadow-lg inline-flex items-center justify-center"
       >
         <span class="text-[11px] font-mono text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] tracking-wider">

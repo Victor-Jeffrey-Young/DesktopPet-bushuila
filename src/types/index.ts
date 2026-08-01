@@ -11,6 +11,7 @@ export interface ReminderSettings {
   autoStart: boolean
   systemTray: boolean
   voiceSource: 'builtin' | 'ai' | 'custom'
+  theme: 'system' | 'light' | 'dark'
   petTheme: PetTheme
 }
 
