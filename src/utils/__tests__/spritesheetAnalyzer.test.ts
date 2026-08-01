@@ -54,17 +54,18 @@ describe('spritesheetAnalyzer (fixture: ikkun 标准网格)', () => {
     expect(isStandardCodexGrid(64, 64, 8)).toBe(false)
   })
 
-  it('builds action map with standard names (usedRows: idle/reminding/snoozing rows 0/1/2)', () => {
-    const used = new Set([0, 1, 2])
+  it('builds action map with standard names (usedRows: idle/wave/waiting rows 0/3/6)', () => {
+    const used = new Set([0, 3, 6])
     const { names, extras } = buildActionMap(9, used, analyses, true)
-    // waiting(row3) review(row4) extra1(row5) extra3(row7) extra4(row8)；row6 静态被排除
-    expect(names).toEqual(['waiting', 'review', 'extra1', 'extra3', 'extra4'])
-    expect(extras.waiting).toEqual({ row: 3, frames: 4 })
-    expect(extras.review).toEqual({ row: 4, frames: 5 })
-    expect(extras.extra1).toEqual({ row: 5, frames: 8 })
-    expect(extras.extra3).toEqual({ row: 7, frames: 6 })
-    expect(extras.extra4).toEqual({ row: 8, frames: 6 })
-    expect(extras.extra2).toBeUndefined()
+    // run-right(1) run-left(2) jump(4) failed(5) run(7) review(8)；wave(3)/waiting(6) 被状态占用
+    expect(names).toEqual(['run-right', 'run-left', 'jump', 'failed', 'run', 'review'])
+    expect(extras['run-right']).toEqual({ row: 1, frames: 8 })
+    expect(extras['run-left']).toEqual({ row: 2, frames: 8 })
+    expect(extras.jump).toEqual({ row: 4, frames: 5 })
+    expect(extras.failed).toEqual({ row: 5, frames: 8 })
+    expect(extras.run).toEqual({ row: 7, frames: 6 })
+    expect(extras.review).toEqual({ row: 8, frames: 6 })
+    expect(extras.extra1).toBeUndefined()
   })
 })
 
@@ -91,11 +92,11 @@ describe('spritesheetAnalyzer (fixture: 月薪喵 Codex 标准网格 192×208)',
   it('builds standard actions and skips static rows when state rows are used', () => {
     const used = new Set([0, 1, 3])
     const { names, extras } = buildActionMap(9, used, analyses, true)
-    expect(names).toEqual(['running', 'review', 'extra1'])
-    expect(extras.running).toEqual({ row: 2, frames: 8 })
-    expect(extras.review).toEqual({ row: 4, frames: 5 })
-    expect(extras.extra1).toEqual({ row: 5, frames: 8 })
-    expect(extras.extra2).toBeUndefined()
+    expect(names).toEqual(['run-left', 'jump', 'failed'])
+    expect(extras['run-left']).toEqual({ row: 2, frames: 8 })
+    expect(extras.jump).toEqual({ row: 4, frames: 5 })
+    expect(extras.failed).toEqual({ row: 5, frames: 8 })
+    expect(extras.extra1).toBeUndefined()
   })
 
 })

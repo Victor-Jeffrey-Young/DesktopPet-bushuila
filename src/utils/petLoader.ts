@@ -41,11 +41,11 @@ export async function loadAllBuiltinPets(): Promise<PetPackage[]> {
 /** Codex 标准网格默认值（1536×1872，8列，单元格 192×208） */
 const DEFAULT_FRAME_WIDTH = 192
 const DEFAULT_FRAME_HEIGHT = 208
-/** 缺少 stateMap 时的默认行映射（Codex 标准网格：idle row0 / waving row1 / running row2 / waiting row3） */
+/** 缺少 stateMap 时的默认行映射（Codex 标准网格：idle row0 / wave row3 / waiting row6，run 行留给移动） */
 const DEFAULT_STATE_MAP: PetPackage['stateMap'] = {
   idle: { row: 0, frames: 6, fps: 8, loop: true },
-  reminding: { row: 1, frames: 8, fps: 8, loop: true },
-  snoozing: { row: 3, frames: 4, fps: 4, loop: true },
+  reminding: { row: 3, frames: 4, fps: 8, loop: true },
+  snoozing: { row: 6, frames: 6, fps: 4, loop: true },
 }
 
 export function validatePetPackage(data: unknown): PetPackage {

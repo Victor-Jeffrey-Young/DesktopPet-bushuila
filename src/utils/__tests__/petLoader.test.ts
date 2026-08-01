@@ -71,8 +71,8 @@ describe('validatePetPackage', () => {
     expect(result.frameHeight).toBe(208)
     expect(result.stateMap.idle.row).toBe(0)
     expect(result.stateMap.idle.frames).toBe(6)
-    expect(result.stateMap.reminding.row).toBe(1)
-    expect(result.stateMap.snoozing.row).toBe(3)
+    expect(result.stateMap.reminding.row).toBe(3)
+    expect(result.stateMap.snoozing.row).toBe(6)
   })
 
   it('should fill default for partially missing stateMap', () => {
@@ -87,8 +87,8 @@ describe('validatePetPackage', () => {
     const result = validatePetPackage(data)
 
     expect(result.stateMap.idle.frames).toBe(2)
-    expect(result.stateMap.reminding.row).toBe(1)
-    expect(result.stateMap.snoozing.row).toBe(3)
+    expect(result.stateMap.reminding.row).toBe(3)
+    expect(result.stateMap.snoozing.row).toBe(6)
   })
 
   it('should fallback invalid animation config to default', () => {

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, watch, onErrorCaptured, onUnmounted } from 'vue'
 import { ref } from 'vue'
+import { emit as emitEvent, listen, type UnlistenFn } from '@tauri-apps/api/event'
 import SpritePet from './components/SpritePet.vue'
-import ReminderBubble from './components/ReminderBubble.vue'
 import { useAppStore } from './stores/app'
 import { useReminderTimer } from './composables/useReminderTimer'
 import { useAudio } from './composables/useAudio'
@@ -14,8 +14,10 @@ const store = useAppStore()
 useTheme()
 const { scheduleReminder, resetTimer, snooze: snoozeTimer, countdown, formatCountdown } = useReminderTimer()
 const { play: playAudio, playBeep } = useAudio()
-const showBubble = ref(false)
 const hasError = ref(false)
+let reminderReadyUnlisten: UnlistenFn | null = null
+let reminderDismissUnlisten: UnlistenFn | null = null
+let reminderSnoozeUnlisten: UnlistenFn | null = null
 
 onErrorCaptured((err) => {
   hasError.value = true
@@ -28,10 +30,18 @@ async function playVoiceFromPath(filePath: string) {
   await playAudio(buffer)
 }
 
+async function sendReminderData() {
+  if (store.spriteState !== 'reminding') return
+  await emitEvent('reminder-data', {
+    count: store.todayCount,
+    snoozeMinutes: store.settings.snoozeMinutes,
+  })
+}
+
 watch(() => store.spriteState, (state) => {
   if (state !== 'reminding') return
 
-  showBubble.value = true
+  void openPanel('reminder').then(() => sendReminderData())
 
   if (store.settings.voiceSource === 'custom' && store.customVoices.length > 0) {
     const idx = Math.floor(Math.random() * store.customVoices.length)
@@ -50,13 +60,11 @@ function openSettings() {
 }
 
 function handleDismiss() {
-  showBubble.value = false
   store.confirmDrink()
   resetTimer()
 }
 
 function handleSnooze() {
-  showBubble.value = false
   snoozeTimer()
 }
 
@@ -71,8 +79,11 @@ function onStorage(e: StorageEvent) {
   if (store.spriteState === 'idle') scheduleReminder()
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('storage', onStorage)
+  reminderReadyUnlisten = await listen('reminder-ready', sendReminderData)
+  reminderDismissUnlisten = await listen('reminder-dismiss', handleDismiss)
+  reminderSnoozeUnlisten = await listen('reminder-snooze', handleSnooze)
   store.loadBuiltinPets()
   store.migrateVoices()
   scheduleReminder()
@@ -80,6 +91,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('storage', onStorage)
+  reminderReadyUnlisten?.()
+  reminderDismissUnlisten?.()
+  reminderSnoozeUnlisten?.()
 })
 </script>
 
@@ -101,15 +115,6 @@ onUnmounted(() => {
       :state="store.spriteState"
       :countdown="formatCountdown(countdown)"
       @right-click="openSettings"
-      @click="store.spriteState === 'reminding' ? (showBubble = true) : null"
-    />
-
-    <ReminderBubble
-      v-if="store.spriteState === 'reminding' && showBubble"
-      :count="store.todayCount"
-      :snooze-minutes="store.settings.snoozeMinutes"
-      @dismiss="handleDismiss"
-      @snooze="handleSnooze"
     />
   </div>
 </template>

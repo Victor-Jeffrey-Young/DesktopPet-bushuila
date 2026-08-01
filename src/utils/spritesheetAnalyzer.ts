@@ -12,12 +12,16 @@ export interface RowAnalysis {
   isAnimation: boolean
 }
 
-/** Codex 标准 9/11 行网格的动作行映射 */
+/** Codex 标准 9/11 行网格的真实行布局（row → 动作名） */
 export const CODEX_STANDARD_ACTIONS: Array<[string, number]> = [
-  ['waving', 1],
-  ['running', 2],
-  ['waiting', 3],
-  ['review', 4],
+  ['run-right', 1],
+  ['run-left', 2],
+  ['wave', 3],
+  ['jump', 4],
+  ['failed', 5],
+  ['waiting', 6],
+  ['run', 7],
+  ['review', 8],
 ]
 
 export interface ActionMapEntry {
@@ -65,27 +69,30 @@ export function buildActionMap(
 ): { names: string[]; extras: Record<string, { row: number; frames: number }> } {
   const names: string[] = []
   const extras: Record<string, { row: number; frames: number }> = {}
+  const namedRows = new Set<number>(usedRows)
 
   const rowActions: Array<[string, number]> = isStandardGrid ? CODEX_STANDARD_ACTIONS : []
 
   rowActions.forEach(([name, row]) => {
-    if (row >= rows || usedRows.has(row)) return
+    if (row >= rows || namedRows.has(row)) return
     const a = analyses[row]
     if (!a || a.frames <= 0 || !a.isAnimation) return
     extras[name] = { row, frames: a.frames }
     names.push(name)
+    namedRows.add(row)
   })
 
-  // 标准网格：标准动作行（1-4）已处理，从 row 5 开始检测额外行
+  // 标准网格：标准动作行已处理，从 row 5 开始检测额外行
   // 非标准网格：扫描所有未占用行（动画行可能出现在任意位置）
   const scanStart = isStandardGrid ? 5 : 0
   for (let row = scanStart; row < rows; row++) {
-    if (usedRows.has(row)) continue
+    if (namedRows.has(row)) continue
     const a = analyses[row]
     if (!a || a.frames <= 0 || !a.isAnimation) continue
     const name = isStandardGrid ? `extra${row - 4}` : `action${names.length + 1}`
     extras[name] = { row, frames: a.frames }
     names.push(name)
+    namedRows.add(row)
   }
 
   return { names, extras }

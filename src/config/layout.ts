@@ -2,7 +2,7 @@
 
 export const LAYOUT = {
   /** 精灵容器垂直位置（窗口高度百分比，偏上减少顶部留白） */
-  petVerticalPct: 32,
+  petVerticalPct: 40,
   /** 精灵本体半宽（w-28 = 112px / 2） */
   petHalf: 56,
   /** 倒计时高度（精灵下方） */

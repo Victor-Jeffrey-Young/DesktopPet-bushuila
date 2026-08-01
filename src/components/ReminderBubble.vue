@@ -59,13 +59,13 @@ const progress = computed(() => Math.min(100, Math.round((props.count / 8) * 100
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px;
+  padding: 20px;
   pointer-events: none;
 }
 
 .reminder-card {
-  width: min(100%, 180px);
-  padding: 13px;
+  width: min(100%, 280px);
+  padding: 18px;
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: 15px;
@@ -86,12 +86,12 @@ const progress = computed(() => Math.min(100, Math.round((props.count / 8) * 100
 .reminder-mark {
   display: grid;
   place-items: center;
-  width: 29px;
-  height: 29px;
+  width: 36px;
+  height: 36px;
   border-radius: 9px;
   background: linear-gradient(145deg, #7fc8ff, #1679d6);
   box-shadow: 0 3px 8px rgba(0, 122, 255, 0.24);
-  font-size: 16px;
+  font-size: 19px;
 }
 
 .reminder-heading {
@@ -106,14 +106,14 @@ const progress = computed(() => Math.min(100, Math.round((props.count / 8) * 100
 
 .reminder-heading span {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
 }
 
 .reminder-heading small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .reminder-pulse {
@@ -129,7 +129,7 @@ const progress = computed(() => Math.min(100, Math.round((props.count / 8) * 100
 }
 
 .reminder-copy h2 {
-  font-size: 21px;
+  font-size: 25px;
   font-weight: 720;
   letter-spacing: -0.045em;
   line-height: 1.05;
@@ -138,13 +138,13 @@ const progress = computed(() => Math.min(100, Math.round((props.count / 8) * 100
 .reminder-copy p {
   margin-top: 4px;
   color: var(--ink-secondary);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
 .reminder-progress {
   margin-top: 12px;
-  padding: 8px 9px 9px;
+  padding: 10px 11px 11px;
   border-radius: 9px;
   background: var(--accent-soft);
 }
@@ -154,18 +154,18 @@ const progress = computed(() => Math.min(100, Math.round((props.count / 8) * 100
   align-items: baseline;
   justify-content: space-between;
   color: var(--ink-secondary);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .progress-summary strong {
   color: var(--accent);
-  font-size: 12px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
 
 .progress-summary small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 500;
 }
 
@@ -194,12 +194,12 @@ const progress = computed(() => Math.min(100, Math.round((props.count / 8) * 100
 
 .action-button {
   min-width: 0;
-  min-height: 30px;
-  padding: 0 4px;
+  min-height: 38px;
+  padding: 0 7px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 9px;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   transition: transform 140ms ease, background 140ms ease, color 140ms ease;
 }

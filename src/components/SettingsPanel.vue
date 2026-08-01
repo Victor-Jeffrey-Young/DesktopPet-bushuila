@@ -118,15 +118,21 @@ async function handlePetPackageImport(e: Event) {
   for (const file of files) {
     try {
       const zip = await JSZip.loadAsync(file)
-      const petJsonFile = zip.file('pet.json')
+      // 递归查找 pet.json：兼容包内多一层目录的结构（如 daodun/pet.json），忽略 __MACOSX 系统文件
+      const petJsonFile = Object.keys(zip.files)
+        .filter(name => !name.startsWith('__MACOSX') && (name === 'pet.json' || name.endsWith('/pet.json')))
+        .sort((a, b) => a.length - b.length)
+        .map(name => zip.files[name])[0]
       if (!petJsonFile) {
         alert(`导入失败：${file.name} 中缺少 pet.json`)
         continue
       }
+      // pet.json 所在目录（如 'daodun/'），spritesheet 路径相对它解析
+      const baseDir = petJsonFile.name.slice(0, -'pet.json'.length)
       const pkg = validatePetPackage(JSON.parse(await petJsonFile.async('text')))
       let spritesheetData: Uint8Array | undefined
       if (pkg.spritesheetPath) {
-        const spriteFile = zip.file(pkg.spritesheetPath)
+        const spriteFile = zip.file(baseDir + pkg.spritesheetPath) ?? zip.file(pkg.spritesheetPath)
         if (!spriteFile) {
           alert(`导入失败：宠物包缺少 ${pkg.spritesheetPath}`)
           continue

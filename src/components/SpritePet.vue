@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { emit as emitEvent } from '@tauri-apps/api/event'
+import { emit as emitEvent, listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useWindowDrag } from '../composables/useWindowDrag'
 import { useAppStore } from '../stores/app'
 import { useSpriteAnimation } from '../composables/useSpriteAnimation'
@@ -38,6 +39,8 @@ const wanderY = ref(0)
 const isWalking = ref(false)
 const isHovered = ref(false)
 const showButtons = ref(false)
+const showHitboxDebug = ref(false)
+let hitboxUnlisten: UnlistenFn | null = null
 let hideButtonsTimer: ReturnType<typeof setTimeout> | null = null
 let wanderTimer: ReturnType<typeof setTimeout> | null = null
 let actionTimer: ReturnType<typeof setTimeout> | null = null
@@ -52,6 +55,11 @@ const activeCustomPet = computed(() =>
     : undefined,
 )
 
+const petFootprintStyle = computed(() => ({
+  left: `calc(50% - ${LAYOUT.petHalf}px + ${wanderX.value}px)`,
+  top: `calc(${LAYOUT.petVerticalPct}% - ${LAYOUT.petHalf}px + ${wanderY.value}px)`,
+}))
+
 function randomPosition() {
   if (unmounted || isHovered.value || props.state !== 'idle') return
   const winW = window.innerWidth
@@ -64,11 +72,16 @@ function randomPosition() {
   setTimeout(() => { if (!unmounted) isWalking.value = false }, 600)
 }
 
-/** 移动时播放 running/walking 动画（moving 状态循环），停下回到 idle */
+/** 移动时按方向播放 run 系列动画（moving 状态循环），停下回到 idle */
+const MOVE_ACTIONS = ['run', 'running', 'walking', 'run-right', 'run-left']
 watch(isWalking, (walking) => {
   if (!theme.value.isCodex || !spriteAnim.isLoaded.value) return
   if (walking) {
-    const name = spriteAnim.availableActions.value.find(a => a === 'running' || a === 'walking')
+    const available = spriteAnim.availableActions.value
+    // 按移动方向选择动画：向右 run-right、向左 run-left，缺失时回退通用 run
+    const direction = wanderX.value >= 0 ? 'run-right' : 'run-left'
+    const name = available.find(a => a === direction)
+      ?? available.find(a => MOVE_ACTIONS.includes(a))
     if (name) spriteAnim.play(name, { loop: true })
   } else {
     if (spriteAnim.machineState.value === 'moving') {
@@ -76,6 +89,80 @@ watch(isWalking, (walking) => {
     }
   }
 })
+
+// --- 拖动方向检测：轮询窗口位置，向上拖播放 jump、向下拖播放 run ---
+const appWindow = getCurrentWindow()
+let dragPollTimer: ReturnType<typeof setTimeout> | null = null
+let dragActive = false
+let dragStartTime = 0
+let dragStillCount = 0
+let lastDragPos: { x: number; y: number } | null = null
+
+async function readWindowPos(): Promise<{ x: number; y: number } | null> {
+  try {
+    const pos = await appWindow.outerPosition()
+    return { x: pos.x, y: pos.y }
+  } catch {
+    return null
+  }
+}
+
+function scheduleDragPoll() {
+  if (!dragActive) return
+  dragPollTimer = setTimeout(async () => {
+    if (!dragActive) return
+    const pos = await readWindowPos()
+    if (pos && lastDragPos) {
+      const dy = pos.y - lastDragPos.y
+      if (dy < -1) {
+        dragStillCount = 0
+        // 向上拖：播放跳跃（反复触发保持跳动效果）
+        if (theme.value.isCodex && spriteAnim.isLoaded.value) {
+          spriteAnim.play('jump')
+        }
+      } else if (dy > 1) {
+        dragStillCount = 0
+        // 向下拖：播放 run 系列（优先通用 run，其次按水平方向）
+        if (theme.value.isCodex && spriteAnim.isLoaded.value) {
+          const available = spriteAnim.availableActions.value
+          const name = available.find(a => ['run', 'running', 'walking'].includes(a))
+            ?? available.find(a => ['run-right', 'run-left'].includes(a))
+          if (name) spriteAnim.play(name, { loop: true })
+        }
+      } else {
+        dragStillCount++
+        // 位置静止超过 600ms（且已拖动过）视为拖动结束
+        if (dragStillCount > 10 && Date.now() - dragStartTime > 1500) {
+          dragActive = false
+          if (spriteAnim.machineState.value === 'moving' || spriteAnim.machineState.value === 'action') {
+            spriteAnim.play('idle')
+          }
+          return
+        }
+      }
+      lastDragPos = pos
+    }
+    scheduleDragPoll()
+  }, 60)
+}
+
+async function handleDragStart(e: MouseEvent) {
+  if ((e.target as HTMLElement).closest('.no-drag')) return
+  startDrag(e)
+  dragActive = true
+  dragStartTime = Date.now()
+  dragStillCount = 0
+  lastDragPos = await readWindowPos()
+  scheduleDragPoll()
+}
+
+function handleDragEnd() {
+  if (!dragActive) return
+  dragActive = false
+  if (spriteAnim.machineState.value === 'moving' || spriteAnim.machineState.value === 'action') {
+    spriteAnim.play('idle')
+  }
+}
 
 function setThoughtEmoji(action: MicroAction) {
   // 优先使用自定义精灵配置的表情
@@ -110,7 +197,7 @@ function randomAction() {
 
   // Codex 精灵：随机播放 spritesheet 动作（排除移动类动画，移动由 isWalking 驱动）
   if (theme.value.isCodex && spriteAnim.availableActions.value.length > 0) {
-    const idleActions = spriteAnim.availableActions.value.filter(a => a !== 'running' && a !== 'walking')
+    const idleActions = spriteAnim.availableActions.value.filter(a => !MOVE_ACTIONS.includes(a))
     if (idleActions.length === 0) return
     const name = idleActions[Math.floor(Math.random() * idleActions.length)]
     spriteAnim.play(name)
@@ -273,7 +360,10 @@ function onWindowResize() {
   wanderY.value = Math.min(Math.max(wanderY.value, -maxUp), maxDown)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  hitboxUnlisten = await listen<boolean>('debug-hitbox-toggle', event => {
+    showHitboxDebug.value = event.payload
+  })
   window.addEventListener('resize', onWindowResize)
   scheduleWander()
   scheduleAction()
@@ -282,6 +372,8 @@ onMounted(() => {
 onUnmounted(() => {
   unmounted = true
   if (pushTimer) clearTimeout(pushTimer)
+  if (dragPollTimer) clearTimeout(dragPollTimer)
+  hitboxUnlisten?.()
   window.removeEventListener('resize', onWindowResize)
   if (wanderTimer) clearTimeout(wanderTimer)
   if (actionTimer) clearTimeout(actionTimer)
@@ -335,12 +427,7 @@ function openSettings(e: MouseEvent) {
   <div
     class="relative w-full h-full cursor-grab active:cursor-grabbing select-none"
     style="will-change: transform"
-    @mousedown="startDrag"
-    @contextmenu="handleContextMenu"
-    @click="handleClick"
-    @dblclick="handleDoubleClick"
-    @mouseenter="onMouseEnter"
-    @mouseleave="onMouseLeave"
+    @mouseup="handleDragEnd"
   >
     <!-- 精灵本体（纯 transform 移动，只触发 Composite，不触发 Layout/Paint，消除残影） -->
     <div
@@ -364,6 +451,12 @@ function openSettings(e: MouseEvent) {
           !theme.isCodex && state === 'snoozing' && 'animate-snooze',
         ]"
         :style="theme.isCodex ? undefined : gradientStyle"
+        @mousedown="handleDragStart"
+        @contextmenu="handleContextMenu"
+        @click="handleClick"
+        @dblclick="handleDoubleClick"
+        @mouseenter="onMouseEnter"
+        @mouseleave="onMouseLeave"
       >
         <!-- Codex 精灵：Canvas 渲染（由 spritesheet 帧动画驱动，不叠加 CSS 动画） -->
         <canvas
@@ -436,10 +529,35 @@ function openSettings(e: MouseEvent) {
           </svg>
         </button>
       </div>
+      <div v-if="showHitboxDebug" class="hitbox-overlay" :style="petFootprintStyle" aria-hidden="true">
+        <span class="hitbox-label">可触摸 / 拖拽区域 112×112</span>
+      </div>
     </div>
 </template>
 
 <style scoped>
+/* 调试可视化：红框是实际宠物拖拽命中区 */
+.hitbox-overlay {
+  position: absolute;
+  width: 112px;
+  height: 112px;
+  z-index: 80;
+  border: 1px dashed rgba(255, 59, 48, 0.95);
+  pointer-events: none;
+}
+
+.hitbox-label {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: rgba(255, 59, 48, 0.88);
+  color: white;
+  font: 9px/1.1 -apple-system, BlinkMacSystemFont, sans-serif;
+  white-space: nowrap;
+}
+
 /* --- 基础状态 --- */
 @keyframes idle {
   0%, 100% { transform: translateY(0) scale(1); }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { emit as emitEvent, listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type { DiagnosticsSnapshot } from '../composables/useSpriteAnimation'
 import { useTheme } from '../composables/useTheme'
 
@@ -9,6 +9,7 @@ useTheme()
 const diagnostics = ref<DiagnosticsSnapshot | null>(null)
 const gridRef = ref<HTMLCanvasElement | null>(null)
 const spriteImage = ref<HTMLImageElement | null>(null)
+const hitboxEnabled = ref(false)
 let loadedSpriteUrl = ''
 let unlisten: UnlistenFn | null = null
 
@@ -23,6 +24,7 @@ const STATE_COLORS: Record<string, string> = {
 
 onMounted(async () => {
   document.title = 'Animation Inspector'
+  await emitEvent('debug-hitbox-toggle', false)
   unlisten = await listen<DiagnosticsSnapshot>('debug-diagnostics', (event) => {
     diagnostics.value = event.payload
     void loadSprite(event.payload.spritesheetUrl)
@@ -31,7 +33,13 @@ onMounted(async () => {
 
 onUnmounted(() => {
   unlisten?.()
+  void emitEvent('debug-hitbox-toggle', false)
 })
+
+async function toggleHitbox() {
+  hitboxEnabled.value = !hitboxEnabled.value
+  await emitEvent('debug-hitbox-toggle', hitboxEnabled.value)
+}
 
 async function loadSprite(url?: string) {
   if (!url || url === loadedSpriteUrl) return
@@ -127,6 +135,23 @@ watch(
     </header>
 
     <main class="inspector-scroll">
+      <section class="hitbox-control">
+        <div class="hitbox-control-copy">
+          <span class="hitbox-control-icon">⌗</span>
+          <span><strong>显示交互区域</strong><small>红框：拖拽范围 · 橙框：宠物本体</small></span>
+        </div>
+        <button
+          type="button"
+          class="debug-switch"
+          :class="hitboxEnabled && 'debug-switch-on'"
+          :aria-pressed="hitboxEnabled"
+          aria-label="切换交互区域标记"
+          @click="toggleHitbox"
+        >
+          <span></span>
+        </button>
+      </section>
+
       <template v-if="diagnostics">
         <section class="state-hero">
           <div class="state-line">
@@ -225,6 +250,17 @@ watch(
 
 .inspector-scroll { height: calc(100% - 61px); overflow-y: auto; padding: 16px 18px 20px; }
 .inspector-scroll > * + * { margin-top: 12px; }
+.hitbox-control { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.hitbox-control-copy { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hitbox-control-copy > span:last-child { min-width: 0; }
+.hitbox-control-copy strong, .hitbox-control-copy small { display: block; }
+.hitbox-control-copy strong { color: var(--ink); font-size: 11px; font-weight: 600; }
+.hitbox-control-copy small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.hitbox-control-icon { display: grid; place-items: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); font-size: 14px; }
+.debug-switch { position: relative; flex: 0 0 auto; width: 37px; height: 22px; padding: 0; border: 0; border-radius: 999px; background: var(--track-strong); transition: background 180ms ease; }
+.debug-switch span { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--thumb); box-shadow: 0 1px 3px var(--thumb-shadow); transition: transform 180ms ease; }
+.debug-switch-on { background: var(--accent); }
+.debug-switch-on span { transform: translateX(15px); }
 
 .state-hero { padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-card); }
 .state-line { display: flex; align-items: center; gap: 7px; }

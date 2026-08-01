@@ -72,12 +72,15 @@ my-pet.bushuila-pet  (.zip 压缩包)
 
 | 行 | 标准动作 | 本应用用途 |
 |----|---------|-----------|
-| 0 | Idle | 待机状态（默认 stateMap 使用） |
-| 1 | Waving | 提醒状态（挥手吸引注意） |
-| 2 | Running | 移动动画（自动检测为 `running`） |
-| 3 | Waiting | 小憩状态（默认 stateMap 使用） |
-| 4 | Review | 点击动作 |
-| 5+ | 转向/额外 | 自动检测为 `extraN` |
+| 0 | Idle | 待机状态 |
+| 1 | Run right | 自动检测为 `run-right` |
+| 2 | Run left | 自动检测为 `run-left` |
+| 3 | Wave | 提醒状态（默认 stateMap 使用） |
+| 4 | Jump | 自动检测为 `jump` |
+| 5 | Failed | 自动检测为 `failed` |
+| 6 | Waiting | 小憩状态（默认 stateMap 使用） |
+| 7 | Run | 移动动画（自动检测为 `run`） |
+| 8 | Review | 自动检测为 `review` |
 
 > 若 pet.json 显式提供 `stateMap`/`actions`，以显式配置为准，检测自动跳过已占用的行。
 
@@ -90,10 +93,10 @@ my-pet.bushuila-pet  (.zip 压缩包)
 | 状态 | row | 帧数 | 说明 |
 |------|-----|------|------|
 | idle | 0 | 6 | |
-| reminding | 1 | 8 | 对应标准 waving 行 |
-| snoozing | 3 | 4 | 对应标准 waiting 行 |
+| reminding | 3 | 4 | 对应标准 wave 行（挥手提醒） |
+| snoozing | 6 | 6 | 对应标准 waiting 行（安静等待） |
 
-> 选择 reminding→row1、snoozing→row3 是为了**让 row2（running）保留给移动动画**，避免状态占用与标准动作行冲突（早期版本 snoozing→row2 导致小憩时播放跑步动画）。
+> 选择 reminding→row3、snoozing→row6 是为了**让 run 系列行（1/2/7）保留给移动动画**，避免状态占用与标准动作行冲突（早期版本 snoozing→row2 导致小憩时播放跑步动画）。
 
 ---
 

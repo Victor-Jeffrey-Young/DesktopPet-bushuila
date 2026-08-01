@@ -4,10 +4,17 @@ import './style.css'
 import App from './App.vue'
 import SettingsWindow from './views/SettingsWindow.vue'
 import DebugWindow from './views/DebugWindow.vue'
+import ReminderWindow from './views/ReminderWindow.vue'
 
 const view = new URLSearchParams(window.location.search).get('view')
 
-const rootComponent = view === 'settings' ? SettingsWindow : view === 'debug' ? DebugWindow : App
+const rootComponent = view === 'settings'
+  ? SettingsWindow
+  : view === 'debug'
+    ? DebugWindow
+    : view === 'reminder'
+      ? ReminderWindow
+      : App
 
 const app = createApp(rootComponent)
 app.use(createPinia())
