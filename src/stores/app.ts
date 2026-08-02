@@ -10,7 +10,25 @@ const STORAGE_KEY_SETTINGS = 'bushuila_settings'
 const STORAGE_KEY_VOICES = 'bushuila_custom_voices'
 const STORAGE_KEY_RECORDS = 'bushuila_drink_records'
 const STORAGE_KEY_CUSTOM_PETS = 'bushuila_custom_pets'
+const STORAGE_KEY_IMPORTED_PETS = 'bushuila_imported_pets'
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000
+
+/** 全部存储 key（统一出口，避免各处写字符串字面量） */
+export const STORAGE_KEYS = {
+  settings: STORAGE_KEY_SETTINGS,
+  voices: STORAGE_KEY_VOICES,
+  records: STORAGE_KEY_RECORDS,
+  customPets: STORAGE_KEY_CUSTOM_PETS,
+  importedPets: STORAGE_KEY_IMPORTED_PETS,
+} as const
+
+/** 主窗口需要响应的跨窗口 key（设置窗口写入、主窗口读取；storage 事件据此过滤，避免无关写入触发全量 reload） */
+export const REACTIVE_STORAGE_KEYS = new Set<string>([
+  STORAGE_KEY_SETTINGS,
+  STORAGE_KEY_VOICES,
+  STORAGE_KEY_CUSTOM_PETS,
+  STORAGE_KEY_IMPORTED_PETS,
+])
 
 const DEFAULT_SETTINGS: ReminderSettings = {
   intervalMinutes: 30,
@@ -20,6 +38,8 @@ const DEFAULT_SETTINGS: ReminderSettings = {
   voiceSource: 'builtin',
   theme: 'system',
   petTheme: { pet: 'drop' },
+  debugPanel: false,
+  petScale: 1,
 }
 
 function loadFromStorage<T>(key: string): T[] {
@@ -72,7 +92,7 @@ export const useAppStore = defineStore('app', () => {
   const customVoices = ref<CustomVoice[]>(loadFromStorage<CustomVoice>(STORAGE_KEY_VOICES))
   const customPets = ref<CustomPetConfig[]>(loadFromStorage<CustomPetConfig>(STORAGE_KEY_CUSTOM_PETS))
   const builtinPets = ref<PetPackage[]>([])
-  const importedPets = ref<PetPackage[]>(loadFromStorage<PetPackage>('bushuila_imported_pets'))
+  const importedPets = ref<PetPackage[]>(loadFromStorage<PetPackage>(STORAGE_KEY_IMPORTED_PETS))
   const nextReminderTime = ref<number>(Date.now() + settings.value.intervalMinutes * 60 * 1000)
 
   const allPets = computed(() => [...builtinPets.value, ...importedPets.value])
@@ -210,7 +230,7 @@ export const useAppStore = defineStore('app', () => {
     settings.value = loadSettings()
     customPets.value = loadFromStorage<CustomPetConfig>(STORAGE_KEY_CUSTOM_PETS)
     customVoices.value = loadFromStorage<CustomVoice>(STORAGE_KEY_VOICES)
-    importedPets.value = loadFromStorage<PetPackage>('bushuila_imported_pets')
+    importedPets.value = loadFromStorage<PetPackage>(STORAGE_KEY_IMPORTED_PETS)
     nextReminderTime.value = Date.now() + settings.value.intervalMinutes * 60 * 1000
   }
 
@@ -236,12 +256,12 @@ export const useAppStore = defineStore('app', () => {
     } else {
       importedPets.value.push(pkg)
     }
-    saveToStorage('bushuila_imported_pets', importedPets.value)
+    saveToStorage(STORAGE_KEY_IMPORTED_PETS, importedPets.value)
   }
 
   function removeImportedPet(petId: string) {
     importedPets.value = importedPets.value.filter(p => p.id !== petId)
-    saveToStorage('bushuila_imported_pets', importedPets.value)
+    saveToStorage(STORAGE_KEY_IMPORTED_PETS, importedPets.value)
     if (settings.value.petTheme.pet === petId) {
       settings.value.petTheme = { pet: 'drop' }
       saveSettingsToStorage(settings.value)

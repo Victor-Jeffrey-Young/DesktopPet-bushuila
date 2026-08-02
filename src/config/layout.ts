@@ -17,6 +17,32 @@ export const LAYOUT = {
   buttonGap: 8,
 } as const
 
+/** 布局参数（可缩放项为 number，便于按倍率生成变体） */
+export interface PetLayout {
+  petVerticalPct: number
+  petHalf: number
+  countdownH: number
+  edge: number
+  buttonW: number
+  buttonGroupH: number
+  buttonGap: number
+}
+
+/** 主窗口逻辑基准尺寸（px），随宠物缩放按比例放大 */
+export const WINDOW_LOGICAL_SIZE = { width: 160, height: 200 } as const
+
+/** 按缩放倍率生成布局常量（宠物、按钮、倒计时等比缩放） */
+export function scaledLayout(scale: number, layout: PetLayout = LAYOUT): PetLayout {
+  return {
+    ...layout,
+    petHalf: layout.petHalf * scale,
+    countdownH: layout.countdownH * scale,
+    buttonW: layout.buttonW * scale,
+    buttonGroupH: layout.buttonGroupH * scale,
+    buttonGap: layout.buttonGap * scale,
+  }
+}
+
 export interface WanderBounds {
   maxX: number
   maxUp: number
@@ -24,7 +50,7 @@ export interface WanderBounds {
 }
 
 /** 计算 wander 各方向最大移动距离，保证精灵（含倒计时）不超出窗口 */
-export function clampWanderBounds(winW: number, winH: number, layout = LAYOUT): WanderBounds {
+export function clampWanderBounds(winW: number, winH: number, layout: PetLayout = LAYOUT): WanderBounds {
   const { petHalf, countdownH, edge, petVerticalPct } = layout
   return {
     maxX: Math.max(winW / 2 - petHalf - edge, 10),
@@ -47,7 +73,7 @@ export function clampButtonPos(
   petCenterY: number,
   winW: number,
   winH: number,
-  layout = LAYOUT,
+  layout: PetLayout = LAYOUT,
 ): ButtonPos {
   const { petHalf, buttonW, buttonGroupH, buttonGap, edge } = layout
   let left = petCenterX + petHalf + buttonGap

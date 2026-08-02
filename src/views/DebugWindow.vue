@@ -1,16 +1,25 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { emit as emitEvent, listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type { DiagnosticsSnapshot } from '../composables/useSpriteAnimation'
 import { useTheme } from '../composables/useTheme'
+import { useAppStore } from '../stores/app'
 
 useTheme()
+const store = useAppStore()
+
+/** 面板内容整体缩放（窗口逻辑尺寸已按 petScale 放大，内容按基准 420×560 scale 填满） */
+const panelScaleStyle = computed(() => ({
+  transform: `scale(${store.settings.petScale ?? 1})`,
+  transformOrigin: 'top left',
+}))
 
 const diagnostics = ref<DiagnosticsSnapshot | null>(null)
 const gridRef = ref<HTMLCanvasElement | null>(null)
 const spriteImage = ref<HTMLImageElement | null>(null)
 const hitboxEnabled = ref(false)
 let loadedSpriteUrl = ''
+let spriteObjectUrl: string | null = null
 let unlisten: UnlistenFn | null = null
 
 const STATE_COLORS: Record<string, string> = {
@@ -44,6 +53,10 @@ async function toggleHitbox() {
 async function loadSprite(url?: string) {
   if (!url || url === loadedSpriteUrl) return
   loadedSpriteUrl = url
+  if (spriteObjectUrl) {
+    URL.revokeObjectURL(spriteObjectUrl)
+    spriteObjectUrl = null
+  }
   spriteImage.value = null
   try {
     const response = await fetch(url)
@@ -54,7 +67,8 @@ async function loadSprite(url?: string) {
       spriteImage.value = image
       drawGrid()
     }
-    image.src = URL.createObjectURL(blob)
+    spriteObjectUrl = URL.createObjectURL(blob)
+    image.src = spriteObjectUrl
   } catch {
     spriteImage.value = null
   }
@@ -122,7 +136,7 @@ watch(
 </script>
 
 <template>
-  <div class="inspector-shell">
+  <div class="inspector-shell" :style="panelScaleStyle">
     <header class="inspector-header">
       <div class="inspector-brand">
         <span class="inspector-mark">▦</span>
@@ -213,7 +227,7 @@ watch(
       <div v-else class="inspector-empty">
         <span class="empty-mark">◌</span>
         <strong>Waiting for sprite data</strong>
-        <small>Double-click the pet to start diagnostics</small>
+        <small>在设置 → 应用行为中开启"调试面板"</small>
       </div>
     </main>
   </div>
@@ -222,8 +236,9 @@ watch(
 <style scoped>
 .inspector-shell {
   --blue: var(--accent);
-  width: 100%;
-  height: 100%;
+  /* 基准设计尺寸（窗口逻辑尺寸随 petScale 放大，内容用 transform scale 等比缩放填满） */
+  width: 420px;
+  height: 560px;
   overflow: hidden;
   background: var(--app-bg);
   color: var(--ink);

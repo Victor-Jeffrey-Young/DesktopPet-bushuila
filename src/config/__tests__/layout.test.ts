@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampWanderBounds, clampButtonPos, LAYOUT } from '../layout'
+import { clampWanderBounds, clampButtonPos, LAYOUT, WINDOW_LOGICAL_SIZE, scaledLayout } from '../layout'
 
 describe('layout constants', () => {
   it('exposes all layout constants', () => {
@@ -7,6 +7,35 @@ describe('layout constants', () => {
     expect(LAYOUT.petHalf).toBe(56)
     expect(LAYOUT.buttonW).toBe(28)
     expect(LAYOUT.buttonGroupH).toBe(64)
+  })
+
+  it('exposes window logical size', () => {
+    expect(WINDOW_LOGICAL_SIZE).toEqual({ width: 160, height: 200 })
+  })
+})
+
+describe('scaledLayout', () => {
+  it('scale 1 keeps base values', () => {
+    const l = scaledLayout(1)
+    expect(l.petHalf).toBe(LAYOUT.petHalf)
+    expect(l.buttonW).toBe(LAYOUT.buttonW)
+  })
+
+  it('scale 1.5 scales all sizes proportionally', () => {
+    const l = scaledLayout(1.5)
+    expect(l.petHalf).toBeCloseTo(84, 5)
+    expect(l.buttonW).toBeCloseTo(42, 5)
+    expect(l.buttonGroupH).toBeCloseTo(96, 5)
+    expect(l.countdownH).toBeCloseTo(54, 5)
+    // 百分比/边距等非尺寸项不变
+    expect(l.petVerticalPct).toBe(40)
+    expect(l.edge).toBe(8)
+  })
+
+  it('scaled layout drives wander bounds (window scales with pet)', () => {
+    const b = clampWanderBounds(160 * 1.5, 200 * 1.5, scaledLayout(1.5))
+    // maxX = 120 - 84 - 8 = 28
+    expect(b.maxX).toBe(28)
   })
 })
 

@@ -26,7 +26,7 @@ export interface TransitionRequest {
  * - reminding / snoozing：业务状态，仅 business 优先级可抢占
  * - idle：可从 loading（加载完成）/ action（播完）/ moving（移动结束）进入，business 可强制
  * - moving：仅 idle 进入（wander 生命周期）
- * - action：仅 idle 进入（点击/随机动作）
+ * - action：仅 idle 进入（点击/随机动作），moving 可打断（行走中点击立即响应）
  */
 export function canTransition(
   from: AnimMachineState,
@@ -45,7 +45,7 @@ export function canTransition(
     case 'moving':
       return from === 'idle'
     case 'action':
-      return from === 'idle'
+      return from === 'idle' || from === 'moving'
     default:
       return false
   }

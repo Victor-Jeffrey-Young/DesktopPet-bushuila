@@ -13,6 +13,9 @@ export interface ReminderSettings {
   voiceSource: 'builtin' | 'ai' | 'custom'
   theme: 'system' | 'light' | 'dark'
   petTheme: PetTheme
+  debugPanel: boolean
+  /** 宠物/UI 缩放倍率（0.6–2.0），跨 DPI 与屏幕大小自适应 */
+  petScale: number
 }
 
 export interface DrinkRecord {

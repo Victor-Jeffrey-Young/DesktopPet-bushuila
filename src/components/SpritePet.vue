@@ -2,12 +2,13 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { emit as emitEvent, listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { LogicalSize } from '@tauri-apps/api/dpi'
 import { useWindowDrag } from '../composables/useWindowDrag'
 import { useAppStore } from '../stores/app'
 import { useSpriteAnimation } from '../composables/useSpriteAnimation'
-import { LAYOUT, clampWanderBounds, clampButtonPos } from '../config/layout'
+import { LAYOUT, WINDOW_LOGICAL_SIZE, clampWanderBounds, clampButtonPos, scaledLayout } from '../config/layout'
 import type { MicroAction, CodexSpriteConfig } from '../types'
-import { openPanel } from '../windows'
+import { openPanel, closePanel, resizeAllPanels } from '../windows'
 
 const props = defineProps<{
   state: 'idle' | 'reminding' | 'snoozing'
@@ -24,6 +25,11 @@ const { startDrag, closeOrHide } = useWindowDrag()
 
 const theme = computed(() => store.currentPetConfig)
 
+/** 用户设置的宠物缩放倍率（0.6–2.0） */
+const petScale = computed(() => store.settings.petScale ?? 1)
+/** 按缩放倍率生成的布局常量 */
+const layout = computed(() => scaledLayout(petScale.value))
+
 /** 当前状态下的渐变样式（自定义精灵用 inline style，预设用 Tailwind） */
 const gradientStyle = computed(() => {
   if (theme.value.isCustom) {
@@ -31,6 +37,43 @@ const gradientStyle = computed(() => {
     return style ? { background: style, WebkitBackfaceVisibility: 'hidden' as const, backfaceVisibility: 'hidden' as const } : { WebkitBackfaceVisibility: 'hidden' as const, backfaceVisibility: 'hidden' as const }
   }
   return { WebkitBackfaceVisibility: 'hidden' as const, backfaceVisibility: 'hidden' as const }
+})
+
+/** 宠物容器尺寸（112px 基准 × 缩放倍率）+ 渐变样式 */
+const petBoxStyle = computed(() => {
+  const s = petScale.value
+  return {
+    width: `${112 * s}px`,
+    height: `${112 * s}px`,
+    ...gradientStyle.value,
+  }
+})
+
+/** 操作按钮尺寸（28px 基准 × 缩放倍率） */
+const buttonSizeStyle = computed(() => {
+  const s = petScale.value
+  return { width: `${28 * s}px`, height: `${28 * s}px` }
+})
+
+/** emoji 字号（48px 基准 × 缩放倍率） */
+const emojiSizeStyle = computed(() => {
+  const s = petScale.value
+  return { fontSize: `${48 * s}px`, WebkitBackfaceVisibility: 'hidden' as const, backfaceVisibility: 'hidden' as const }
+})
+
+/** 倒计时条缩放（transform scale，不改布局占位） */
+const countdownScaleStyle = computed(() => {
+  const s = petScale.value
+  return { transform: `scale(${s})`, transformOrigin: 'top center' }
+})
+
+/** 宠物大小变化时窗口逻辑尺寸同步缩放（保持布局比例），并调整已打开的面板窗口 */
+watch(petScale, async (s) => {
+  await appWindow.setSize(new LogicalSize(
+    Math.round(WINDOW_LOGICAL_SIZE.width * s),
+    Math.round(WINDOW_LOGICAL_SIZE.height * s),
+  ))
+  await resizeAllPanels(s)
 })
 
 // 随机散步
@@ -56,8 +99,10 @@ const activeCustomPet = computed(() =>
 )
 
 const petFootprintStyle = computed(() => ({
-  left: `calc(50% - ${LAYOUT.petHalf}px + ${wanderX.value}px)`,
-  top: `calc(${LAYOUT.petVerticalPct}% - ${LAYOUT.petHalf}px + ${wanderY.value}px)`,
+  left: `calc(50% - ${layout.value.petHalf}px + ${wanderX.value}px)`,
+  top: `calc(${LAYOUT.petVerticalPct}% - ${layout.value.petHalf}px + ${wanderY.value}px)`,
+  width: `${112 * petScale.value}px`,
+  height: `${112 * petScale.value}px`,
 }))
 
 function randomPosition() {
@@ -65,7 +110,7 @@ function randomPosition() {
   const winW = window.innerWidth
   const winH = window.innerHeight
   // 各方向允许移动的最大距离（保证精灵+倒计时不超出窗口）
-  const { maxX, maxUp, maxDown } = clampWanderBounds(winW, winH)
+  const { maxX, maxUp, maxDown } = clampWanderBounds(winW, winH, layout.value)
   wanderX.value = -maxX + Math.random() * maxX * 2
   wanderY.value = -maxUp + Math.random() * (maxUp + maxDown)
   isWalking.value = true
@@ -92,6 +137,8 @@ watch(isWalking, (walking) => {
 
 // --- 拖动方向检测：轮询窗口位置，向上拖播放 jump、向下拖播放 run ---
 const appWindow = getCurrentWindow()
+/** 拖动方向检测轮询间隔（原生 startDragging 已负责窗口移动，此轮询仅用于方向动画，无需 60ms 高频） */
+const DRAG_POLL_MS = 120
 let dragPollTimer: ReturnType<typeof setTimeout> | null = null
 let dragActive = false
 let dragStartTime = 0
@@ -143,7 +190,7 @@ function scheduleDragPoll() {
       lastDragPos = pos
     }
     scheduleDragPoll()
-  }, 60)
+  }, DRAG_POLL_MS)
 }
 
 async function handleDragStart(e: MouseEvent) {
@@ -219,23 +266,28 @@ const buttonsStyle = computed(() => {
   const winH = window.innerHeight
   const petCenterX = winW / 2 + wanderX.value
   const petCenterY = (winH * LAYOUT.petVerticalPct) / 100 + wanderY.value
-  const { left, top } = clampButtonPos(petCenterX, petCenterY, winW, winH)
+  const { left, top } = clampButtonPos(petCenterX, petCenterY, winW, winH, layout.value)
   return { left: `${left}px`, top: `${top}px` }
 })
 
 /** 点击精灵：随机触发一个动作（Codex 精灵播放 spritesheet 动作，emoji 精灵做微动作） */
 function triggerAction() {
   if (unmounted || props.state !== 'idle') return
-  if (theme.value.isCodex) {
-    if (spriteAnim.availableActions.value.length > 0) {
-      const name = spriteAnim.availableActions.value[
-        Math.floor(Math.random() * spriteAnim.availableActions.value.length)
-      ]
-      spriteAnim.play(name)
+  // Codex 精灵：spritesheet 加载成功才播放帧动画，否则回退 emoji 微动作
+  if (theme.value.isCodex && spriteAnim.isLoaded.value) {
+    // 优先检测到的可用动作，其次 pet.json 显式配置的动作，都为空则回退微动作
+    let pool = spriteAnim.availableActions.value
+    if (pool.length === 0) {
+      pool = Object.keys(spriteAnim.config.value?.animations ?? {})
+        .filter(k => k !== 'idle' && k !== 'reminding' && k !== 'snoozing')
     }
-  } else {
-    randomAction()
+    if (pool.length > 0) {
+      const name = pool[Math.floor(Math.random() * pool.length)]
+      spriteAnim.play(name)
+      return
+    }
   }
+  randomAction()
 }
 
 function handleClick() {
@@ -243,18 +295,17 @@ function handleClick() {
   emit('click')
 }
 
-// --- Debug 浮层（双击精灵打开；窗口临时放大避免遮挡，关闭恢复） ---
-// --- Debug 面板：独立窗口，双击精灵开关；动画状态变化时推送诊断数据 ---
-const debugEnabled = ref(false)
+// --- Debug 面板：由设置面板的"调试面板"开关控制，开启时推送诊断数据 ---
 let pushTimer: ReturnType<typeof setTimeout> | null = null
 
 function pushDiagnostics() {
-  if (!debugEnabled.value || !spriteAnim.isLoaded.value) return
+  if (!store.settings.debugPanel || !spriteAnim.isLoaded.value) return
   emitEvent('debug-diagnostics', spriteAnim.getDiagnostics())
 }
 
 /** 节流推送（动画帧变化频繁，合并为 200ms 一批） */
 function schedulePush() {
+  if (!store.settings.debugPanel) return
   if (pushTimer) return
   pushTimer = setTimeout(() => {
     pushTimer = null
@@ -262,13 +313,15 @@ function schedulePush() {
   }, 200)
 }
 
-async function handleDoubleClick() {
-  debugEnabled.value = !debugEnabled.value
-  if (debugEnabled.value) {
+/** 设置开关：开启时打开 Debug 窗口并推送当前诊断，关闭时关闭窗口 */
+watch(() => store.settings.debugPanel, async (enabled) => {
+  if (enabled) {
     await openPanel('debug')
     pushDiagnostics()
+  } else {
+    await closePanel('debug')
   }
-}
+})
 
 function scheduleWander() {
   wanderTimer = setTimeout(() => {
@@ -288,7 +341,8 @@ function scheduleAction() {
 
 // ===== Codex 精灵表渲染 =====
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-const spriteCanvasSize = 112 // w-28 h-28
+/** 画布尺寸 = 112px 基准 × 缩放倍率 */
+const spriteCanvasSize = computed(() => Math.round(112 * petScale.value))
 
 /** 精灵表动画引擎（顶层调用，无生命周期限制） */
 const spriteAnim = useSpriteAnimation()
@@ -336,7 +390,7 @@ watch(() => [spriteAnim.currentFrame.value, spriteAnim.isLoaded.value], () => {
   const canvas = canvasRef.value
   const ctx = canvas.getContext('2d')
   if (!ctx) return
-  const size = spriteCanvasSize
+  const size = spriteCanvasSize.value
   if (canvas.width !== size || canvas.height !== size) {
     canvas.width = size
     canvas.height = size
@@ -353,9 +407,9 @@ watch(() => spriteAnim.loadError.value, (err) => {
   }
 })
 
-/** 窗口 resize（设置面板开关等）时，将 wander 偏移 clamp 回新窗口边界，避免宠物被裁剪/移出窗口 */
+/** 窗口 resize（设置面板开关、宠物缩放等）时，将 wander 偏移 clamp 回新窗口边界，避免宠物被裁剪/移出窗口 */
 function onWindowResize() {
-  const { maxX, maxUp, maxDown } = clampWanderBounds(window.innerWidth, window.innerHeight)
+  const { maxX, maxUp, maxDown } = clampWanderBounds(window.innerWidth, window.innerHeight, layout.value)
   wanderX.value = Math.min(Math.max(wanderX.value, -maxX), maxX)
   wanderY.value = Math.min(Math.max(wanderY.value, -maxUp), maxDown)
 }
@@ -441,7 +495,7 @@ function openSettings(e: MouseEvent) {
     >
       <div
         :class="[
-          'w-28 h-28 flex items-center justify-center relative',
+          'flex items-center justify-center relative',
           theme.isCodex ? 'bg-transparent' : 'rounded-full overflow-hidden',
           !theme.isCodex && state === 'idle' && !theme.isCustom && theme.gradients.idle.class,
           !theme.isCodex && state === 'idle' && idleAnimClass,
@@ -450,11 +504,10 @@ function openSettings(e: MouseEvent) {
           !theme.isCodex && state === 'snoozing' && !theme.isCustom && theme.gradients.snoozing.class,
           !theme.isCodex && state === 'snoozing' && 'animate-snooze',
         ]"
-        :style="theme.isCodex ? undefined : gradientStyle"
+        :style="petBoxStyle"
         @mousedown="handleDragStart"
         @contextmenu="handleContextMenu"
         @click="handleClick"
-        @dblclick="handleDoubleClick"
         @mouseenter="onMouseEnter"
         @mouseleave="onMouseLeave"
       >
@@ -468,13 +521,13 @@ function openSettings(e: MouseEvent) {
         <!-- Codex 精灵加载失败回退 -->
         <span v-else-if="theme.isCodex && spriteLoadFailed"
           class="text-5xl"
-          style="-webkit-backface-visibility: hidden; backface-visibility: hidden;">
+          :style="emojiSizeStyle">
           {{ theme.emoji[state] }}
         </span>
         <!-- 普通精灵：Emoji -->
         <span v-else
           :class="['text-5xl', state === 'reminding' && 'animate-wiggle', actionAnimClass]"
-          style="-webkit-backface-visibility: hidden; backface-visibility: hidden;">
+          :style="emojiSizeStyle">
           {{ theme.emoji[state] }}
         </span>
 
@@ -494,6 +547,7 @@ function openSettings(e: MouseEvent) {
       <div
         v-if="state === 'idle' || state === 'snoozing'"
         class="mt-1.5 px-4 py-1.5 rounded-full bg-black/30 border border-white/15 shadow-lg inline-flex items-center justify-center"
+        :style="countdownScaleStyle"
       >
         <span class="text-[11px] font-mono text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] tracking-wider">
           {{ countdown }}
@@ -508,7 +562,8 @@ function openSettings(e: MouseEvent) {
         :style="buttonsStyle"
       >
         <button
-          class="no-drag w-7 h-7 rounded-full bg-white/10 border border-white/20 shadow-lg text-white/70 hover:bg-red-500/70 hover:text-white hover:border-red-300/40 text-[11px] flex items-center justify-center transition-all duration-200 hover:scale-110"
+          class="no-drag rounded-full bg-white/85 border border-black/10 shadow-lg text-gray-700 hover:bg-red-500 hover:text-white hover:border-red-300/60 text-[11px] flex items-center justify-center transition-all duration-200 hover:scale-110"
+          :style="buttonSizeStyle"
           @mousedown.stop
           @click.stop="closeOrHide"
           title="关闭"
@@ -518,7 +573,8 @@ function openSettings(e: MouseEvent) {
           </svg>
         </button>
         <button
-          class="no-drag w-7 h-7 rounded-full bg-white/10 border border-white/20 shadow-lg text-white/70 hover:bg-blue-500/70 hover:text-white hover:border-blue-300/40 text-sm flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90"
+          class="no-drag rounded-full bg-white/85 border border-black/10 shadow-lg text-gray-700 hover:bg-blue-500 hover:text-white hover:border-blue-300/60 text-sm flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90"
+          :style="buttonSizeStyle"
           @mousedown.stop
           @click.stop="openSettings"
           title="设置"
@@ -539,8 +595,6 @@ function openSettings(e: MouseEvent) {
 /* 调试可视化：红框是实际宠物拖拽命中区 */
 .hitbox-overlay {
   position: absolute;
-  width: 112px;
-  height: 112px;
   z-index: 80;
   border: 1px dashed rgba(255, 59, 48, 0.95);
   pointer-events: none;

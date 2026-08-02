@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import type { PetType } from '../types'
 import { validatePetPackage } from '../utils/petLoader'
@@ -25,7 +25,9 @@ const snoozeInput = ref(store.settings.snoozeMinutes)
 const voiceSourceInput = ref(store.settings.voiceSource)
 const autoStartInput = ref(store.settings.autoStart)
 const systemTrayInput = ref(store.settings.systemTray)
+const debugPanelInput = ref(store.settings.debugPanel)
 const themeInput = ref(store.settings.theme)
+const petScaleInput = ref(store.settings.petScale ?? 1)
 const petTypeInput = ref<PetType | 'custom'>(store.settings.petTheme.pet)
 const selectedCustomPetId = ref<string | undefined>(store.settings.petTheme.customPetId)
 const selectedPetId = ref<string>(
@@ -33,6 +35,16 @@ const selectedPetId = ref<string>(
     ? (store.settings.petTheme.customPetId ?? 'drop')
     : store.settings.petTheme.pet,
 )
+
+// 调试面板开关即时生效（无需点击"应用更改"，主窗口通过 storage 事件实时响应）
+watch(debugPanelInput, (v) => {
+  store.updateSettings({ debugPanel: v })
+})
+
+// 宠物大小松手即生效（range change 事件，主窗口通过 storage 事件实时缩放）
+function applyPetScale() {
+  store.updateSettings({ petScale: petScaleInput.value })
+}
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const petPackageInputRef = ref<HTMLInputElement | null>(null)
 
@@ -40,6 +52,13 @@ const todayDate = computed(() => {
   const d = new Date()
   return `${d.getMonth() + 1}月${d.getDate()}日`
 })
+
+/** 面板内容整体缩放（窗口逻辑尺寸已按 petScale 放大，内容按基准 420×560 scale 填满） */
+const panelScale = computed(() => store.settings.petScale ?? 1)
+const panelScaleStyle = computed(() => ({
+  transform: `scale(${panelScale.value})`,
+  transformOrigin: 'top left',
+}))
 
 const previewStyle = computed(() => {
   if (petTypeInput.value === 'custom' && selectedCustomPetId.value) {
@@ -61,7 +80,7 @@ const previewEmoji = computed(() => {
 
 const selectedPet = computed(() => store.allPets.find(pet => pet.id === selectedPetId.value))
 
-async function saveSettings() {
+function saveSettings() {
   const isCustom = petTypeInput.value === 'custom'
   store.updateSettings({
     intervalMinutes: intervalInput.value,
@@ -69,6 +88,8 @@ async function saveSettings() {
     voiceSource: voiceSourceInput.value,
     autoStart: autoStartInput.value,
     systemTray: systemTrayInput.value,
+    debugPanel: debugPanelInput.value,
+    petScale: petScaleInput.value,
     theme: themeInput.value,
     petTheme: {
       pet: isCustom ? 'custom' : (selectedPetId.value as any),
@@ -76,14 +97,13 @@ async function saveSettings() {
     },
   })
 
-  try {
-    if (autoStartInput.value) await enableAutostart()
-    else await disableAutostart()
-  } catch (e) {
-    console.error('Autostart toggle failed:', e)
-  }
-
   emit('close')
+
+  // 开机自启异步应用，不阻塞面板关闭（部分平台 invoke 可能挂起/慢）
+  const applyAutostart = autoStartInput.value ? enableAutostart() : disableAutostart()
+  void applyAutostart.catch((e) => {
+    console.error('Autostart toggle failed:', e)
+  })
 }
 
 function selectPetPackage(id: string) {
@@ -152,7 +172,7 @@ async function handlePetPackageImport(e: Event) {
 </script>
 
 <template>
-  <div class="settings-shell">
+  <div class="settings-shell" :style="panelScaleStyle">
     <aside class="settings-sidebar">
       <div class="brand-lockup">
         <span class="brand-mark">💧</span>
@@ -205,6 +225,7 @@ async function handlePetPackageImport(e: Event) {
           <SettingsCard title="应用行为">
             <ToggleSwitch v-model="autoStartInput" label="开机自启动" />
             <div class="list-divider"><ToggleSwitch v-model="systemTrayInput" label="系统托盘常驻" /></div>
+            <div class="list-divider"><ToggleSwitch v-model="debugPanelInput" label="调试面板" /></div>
           </SettingsCard>
 
           <SettingsCard title="外观">
@@ -273,6 +294,12 @@ async function handlePetPackageImport(e: Event) {
           <button type="button" class="import-button" @click="petPackageInputRef?.click()"><span>＋</span><strong>导入宠物包</strong><small>.zip / .bushuila-pet</small><b>›</b></button>
           <input ref="petPackageInputRef" type="file" accept=".bushuila-pet,.zip" class="hidden" @change="handlePetPackageImport" />
 
+          <SettingsCard title="宠物大小">
+            <div class="setting-line"><span>尺寸</span><strong class="accent-value">{{ petScaleInput }}x</strong></div>
+            <input v-model.number="petScaleInput" type="range" min="0.6" max="2" step="0.1" class="settings-slider" aria-label="宠物大小" @change="applyPetScale" />
+            <div class="range-labels"><span>0.6x</span><span>2.0x</span></div>
+          </SettingsCard>
+
           <SettingsCard title="当前选择">
             <div class="selected-pet">
               <div class="preview-orb" :class="previewStyle.class ?? undefined" :style="previewStyle.class ? undefined : previewStyle"><span>{{ previewEmoji.idle }}</span></div>
@@ -302,8 +329,9 @@ async function handlePetPackageImport(e: Event) {
   --blue: var(--accent);
   display: grid;
   grid-template-columns: 116px minmax(0, 1fr);
-  width: 100%;
-  height: 100%;
+  /* 基准设计尺寸（窗口逻辑尺寸随 petScale 放大，内容用 transform scale 等比缩放填满） */
+  width: 420px;
+  height: 560px;
   overflow: hidden;
   color: var(--ink);
   background: var(--app-bg);

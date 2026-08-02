@@ -29,8 +29,8 @@ describe('animMachine state machine', () => {
     expect(canTransition('action', 'idle')).toBe(true)
   })
 
-  it('moving → action is rejected (no interruption of movement)', () => {
-    expect(canTransition('moving', 'action')).toBe(false)
+  it('moving → action is allowed (click interrupts walking)', () => {
+    expect(canTransition('moving', 'action')).toBe(true)
   })
 
   it('action → moving is rejected', () => {
