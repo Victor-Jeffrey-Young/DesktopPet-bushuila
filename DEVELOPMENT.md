@@ -185,6 +185,39 @@ npm run tauri:build
 
 ---
 
-*最后更新：2026-07-31*  
+## 八、性能基线（2026-08-03 优化记录）
+
+> 原则：先度量再优化，每个优化都有前后数字对照。改动涉及性能相关代码时，回归前请先跑 `npm run test:ci` 并对比 `npm run build` 产物。
+
+### 构建产物（`npm run build` 输出）
+
+| 指标 | 优化前 | 优化后 | 变化 |
+|------|--------|--------|------|
+| 主入口 JS | 243.03 kB（gzip 79.94 kB，单 chunk） | 129.14 kB（gzip 45.50 kB） | **-47% / -43%** |
+| 主入口 CSS | 62.86 kB（gzip 11.36 kB） | 39.19 kB（gzip 7.31 kB） | -38% / -36% |
+| 设置窗口 JS（按需） | 无（打包进主入口） | 109.50 kB（gzip 33.82 kB，含 jszip） | 按需加载 |
+| 单测 | 71 passed（6 files） | 79 passed（7 files） | 新增 8 个 |
+
+### 已实施优化
+
+| # | 优化项 | 说明 |
+|---|--------|------|
+| 1 | spritesheet 像素分析缓存 | `src/utils/analysisCache.ts`，key = URL+帧尺寸，容量 20 FIFO；切换宠物跳过主线程同步像素读取 |
+| 2 | 视图按需动态导入 | `src/main.ts` 按 `view` 参数 `await import()`，Vite 自动代码分割，主窗口不再加载 jszip |
+| 3 | 拖动方向检测轮询降频 | `SpritePet.vue` 60ms → 120ms（`DRAG_POLL_MS`），减少拖动时 Tauri IPC 往返 |
+| 4 | 音频解码缓存 | `useAudio.ts` 按 URL/文件路径缓存 `AudioBuffer`，容量 2 LRU，避免每次提醒重复 `decodeAudioData` |
+| 5 | Blob URL 泄漏修复 | `useSpriteAnimation.ts` / `DebugWindow.vue` 在重新加载时 `revokeObjectURL` |
+| 6 | storage 事件按 key 过滤 | `app.ts` 导出 `STORAGE_KEYS` / `REACTIVE_STORAGE_KEYS`；无关 key 写入不再触发全量 reload |
+| 7 | 内置宠物并行加载 | `petLoader.ts` 串行 for → `Promise.all`，8 个 pet.json 并发 fetch |
+
+### 守护要点
+
+- 新增视图/依赖时确认主入口 chunk 不回升（当前 gzip 目标 < 50 kB）
+- 重载 spritesheet / 图片资源时保持 blob URL revoke 习惯
+- 涉及 storage 跨窗口同步时，使用 `STORAGE_KEYS` 常量并确认 key 过滤名单
+
+---
+
+*最后更新：2026-08-03*  
 *维护者：项目负责人*  
 *协议：MIT*
