@@ -9,15 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - macos-latest
-          - windows-latest
-
-    runs-on: ${{ matrix.platform }}
+  macos:
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
@@ -49,7 +42,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Build and publish release
+      # tauri-action 对草稿 release 不覆盖资产，重跑同一 tag 前需先删除旧草稿
+      - name: Clean up existing draft release
+        run: gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish macOS release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,7 +66,58 @@ jobs:
             > macOS 未签名包首次打开需右键 → 打开；Windows 未签名包可能触发 SmartScreen 提示。
           releaseDraft: true
           prerelease: false
-          # 重跑同一 tag 时允许覆盖已上传的资产
-          updateRelease: true
-          # Windows 跳过 WiX/MSI（中文 productName 会导致 light.exe 失败），仅打 NSIS 安装器
-          args: ${{ matrix.platform == 'windows-latest' && '--bundles nsis' || '' }}
+
+  windows:
+    needs: macos
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run tests and typecheck
+        run: npm run test:ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # Windows 跳过 WiX/MSI（中文 productName 会导致 light.exe 失败），仅打 NSIS 安装器
+      - name: Build and publish Windows release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: '补水啦 ${{ github.ref_name }}'
+          releaseBody: |
+            ## 安装包
+
+            请根据你的系统下载对应的安装包：
+
+            - **macOS**：`.dmg`（拖入 Applications 即可）
+            - **Windows**：`.exe`（NSIS 安装器）
+
+            > macOS 未签名包首次打开需右键 → 打开；Windows 未签名包可能触发 SmartScreen 提示。
+          releaseDraft: true
+          prerelease: false
+          args: --bundles nsis
