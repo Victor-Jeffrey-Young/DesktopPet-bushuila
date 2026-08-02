@@ -1,8 +1,11 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    ActivationPolicy, Manager,
+    Manager,
 };
+
+#[cfg(target_os = "macos")]
+use tauri::ActivationPolicy;
 
 #[cfg(target_os = "macos")]
 use objc2::{msg_send, runtime::AnyObject};
