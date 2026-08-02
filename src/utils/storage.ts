@@ -27,6 +27,12 @@ export async function savePetSprite(id: string, spritesheetPath: string, data: U
     await mkdir(dir, { recursive: true })
   }
   const filePath = await join(dir, spritesheetPath)
+  // spritesheetPath 可能含子目录（如 assets/sprite.webp），确保父目录存在
+  const sepIndex = Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'))
+  const parent = sepIndex > 0 ? filePath.slice(0, sepIndex) : dir
+  if (!(await exists(parent))) {
+    await mkdir(parent, { recursive: true })
+  }
   await writeFile(filePath, data)
   return filePath
 }

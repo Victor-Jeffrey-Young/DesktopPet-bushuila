@@ -9,6 +9,7 @@ import {
   isStandardCodexGrid,
 } from '../utils/spritesheetAnalyzer'
 import type { RowAnalysis } from '../utils/spritesheetAnalyzer'
+import { getCachedAnalysis, setCachedAnalysis } from '../utils/analysisCache'
 
 export interface PlayOptions {
   loop?: boolean
@@ -45,11 +46,17 @@ export function useSpriteAnimation() {
   let animationActive = false
   /** 加载令牌：setConfig 递增，使旧的 onload 结果失效（防止切换宠物时旧图覆盖新图） */
   let loadToken = 0
+  /** asset 协议图片的 blob URL，setConfig 时 revoke 防止泄漏 */
+  let currentObjectUrl: string | null = null
 
   /** 设置/更新精灵表配置，同时重新加载图片 */
   function setConfig(cfg: CodexSpriteConfig | null) {
     loadToken++
     stopAnimation()
+    if (currentObjectUrl) {
+      URL.revokeObjectURL(currentObjectUrl)
+      currentObjectUrl = null
+    }
     config.value = cfg
     availableActions.value = []
     machineState.value = 'loading'
@@ -70,12 +77,15 @@ export function useSpriteAnimation() {
     loadError.value = null
     currentFrame.value = 0
     const img = new Image()
-    if (url.startsWith('asset:')) {
+    // Windows 上 asset URL 为 http://asset.localhost（非 asset: 前缀），统一识别走 fetch→blob，
+    // 保证 canvas 可读像素（getImageData 不受 CORS 限制）
+    if (url.startsWith('asset:') || url.includes('asset.localhost')) {
       // asset 协议图片先转 blob URL（同源），保证 canvas 可读像素（getImageData 不受 CORS 限制）
       try {
         const resp = await fetch(url)
         const blob = await resp.blob()
-        img.src = URL.createObjectURL(blob)
+        currentObjectUrl = URL.createObjectURL(blob)
+        img.src = currentObjectUrl
       } catch (e) {
         if (token === loadToken) loadError.value = `SpriteSheet 加载失败: ${url}`
         return
@@ -137,20 +147,25 @@ export function useSpriteAnimation() {
     const usedRows = new Set(Object.values(c.animations).map(a => a.row))
     const isStandardGrid = isStandardCodexGrid(c.frameWidth, c.frameHeight, rows)
 
-    // 逐行读取：内容量 counts + 帧间差异 diffs
-    const analyses: RowAnalysis[] = []
-    for (let row = 0; row < rows; row++) {
-      const a = readRowPixels(img, c, row, cols)
-      if (!a) return
-      const frames = computeFramesFromCounts(a.counts)
-      const diffs = a.thumbs.length > 1 ? computeRowDiffs(a.thumbs, frames) : []
-      analyses.push({
-        row,
-        counts: a.counts,
-        diffs,
-        frames,
-        isAnimation: computeIsAnimation(diffs),
-      })
+    // 缓存命中：复用上次的行分析结果，跳过主线程同步像素读取
+    let analyses = getCachedAnalysis(c.spritesheetUrl, c.frameWidth, c.frameHeight)
+    if (!analyses) {
+      const computed: RowAnalysis[] = []
+      for (let row = 0; row < rows; row++) {
+        const a = readRowPixels(img, c, row, cols)
+        if (!a) return
+        const frames = computeFramesFromCounts(a.counts)
+        const diffs = a.thumbs.length > 1 ? computeRowDiffs(a.thumbs, frames) : []
+        computed.push({
+          row,
+          counts: a.counts,
+          diffs,
+          frames,
+          isAnimation: computeIsAnimation(diffs),
+        })
+      }
+      analyses = computed
+      setCachedAnalysis(c.spritesheetUrl, c.frameWidth, c.frameHeight, computed)
     }
 
     const { names, extras } = buildActionMap(rows, usedRows, analyses, isStandardGrid)

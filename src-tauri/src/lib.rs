@@ -1,6 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
+    window::Color,
     Manager,
 };
 
@@ -22,6 +23,19 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![quit_app])
         .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                // 统一逻辑尺寸：config 中 width/height 为物理像素，在不同 DPI 缩放（13寸/27寸屏）下
+                // CSS 视口会变化导致 UI 偏小/偏大；按 LogicalSize 重设后任意 DPI 下窗口内 UI 尺寸一致
+                let _ = window.set_size(tauri::LogicalSize::new(160.0, 200.0));
+
+                // Windows 上 WebView2 背景默认可能不透明（透明窗口出现白/黑底矩形），
+                // 对透明的主窗口显式强制全透明（reminder 窗口在 windows.ts 创建时设置）
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = window.set_background_color(Some(Color(0, 0, 0, 0)));
+                }
+            }
+
             #[cfg(target_os = "macos")]
             app.set_activation_policy(ActivationPolicy::Accessory);
 
