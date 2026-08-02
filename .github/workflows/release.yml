@@ -67,3 +67,7 @@ jobs:
             > macOS 未签名包首次打开需右键 → 打开；Windows 未签名包可能触发 SmartScreen 提示。
           releaseDraft: true
           prerelease: false
+          # 重跑同一 tag 时允许覆盖已上传的资产
+          updateRelease: true
+          # Windows 跳过 WiX/MSI（中文 productName 会导致 light.exe 失败），仅打 NSIS 安装器
+          args: ${{ matrix.platform == 'windows-latest' && '--bundles nsis' || '' }}
