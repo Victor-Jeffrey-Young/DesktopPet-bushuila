@@ -23,19 +23,19 @@ export async function loadPetPackage(baseUrl: string): Promise<PetPackage> {
 }
 
 export async function loadAllBuiltinPets(): Promise<PetPackage[]> {
-  const pets: PetPackage[] = []
-
-  for (const id of BUILTIN_PET_IDS) {
-    try {
-      const pkg = await loadPetPackage(`${BUILTIN_PETS_BASE}/${id}`)
-      pkg.source = 'builtin'
-      pets.push(pkg)
-    } catch (e) {
-      console.error(`Failed to load builtin pet: ${id}`, e)
-    }
-  }
-
-  return pets
+  const results = await Promise.all(
+    BUILTIN_PET_IDS.map(async (id) => {
+      try {
+        const pkg = await loadPetPackage(`${BUILTIN_PETS_BASE}/${id}`)
+        pkg.source = 'builtin'
+        return pkg
+      } catch (e) {
+        console.error(`Failed to load builtin pet: ${id}`, e)
+        return null
+      }
+    }),
+  )
+  return results.filter((p): p is PetPackage => p !== null)
 }
 
 /** Codex 标准网格默认值（1536×1872，8列，单元格 192×208） */

@@ -3,7 +3,7 @@ import { onMounted, watch, onErrorCaptured, onUnmounted } from 'vue'
 import { ref } from 'vue'
 import { emit as emitEvent, listen, type UnlistenFn } from '@tauri-apps/api/event'
 import SpritePet from './components/SpritePet.vue'
-import { useAppStore } from './stores/app'
+import { useAppStore, REACTIVE_STORAGE_KEYS } from './stores/app'
 import { useReminderTimer } from './composables/useReminderTimer'
 import { useAudio } from './composables/useAudio'
 import { readVoiceFile } from './utils/storage'
@@ -72,9 +72,9 @@ function handleReload() {
   globalThis.location.reload()
 }
 
-/** 设置窗口在 localStorage 写入后同步刷新本窗口 store（storage 事件跨窗口触发） */
+/** 设置窗口在 localStorage 写入后同步刷新本窗口 store（storage 事件跨窗口触发，仅响应相关 key） */
 function onStorage(e: StorageEvent) {
-  if (!e.key) return
+  if (!e.key || !REACTIVE_STORAGE_KEYS.has(e.key)) return
   store.reloadFromStorage()
   if (store.spriteState === 'idle') scheduleReminder()
 }

@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest'
-import { validatePetPackage } from '../petLoader'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { validatePetPackage, loadAllBuiltinPets } from '../petLoader'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('validatePetPackage', () => {
   it('should validate a minimal valid pet package', () => {
@@ -140,5 +144,58 @@ describe('validatePetPackage', () => {
     expect(() => validatePetPackage(null)).toThrow('not an object')
     expect(() => validatePetPackage('string')).toThrow('not an object')
     expect(() => validatePetPackage(42)).toThrow('not an object')
+  })
+})
+
+describe('loadAllBuiltinPets', () => {
+  const petJson = JSON.stringify({
+    id: 'x',
+    displayName: 'X',
+    fallbackEmoji: '🐾',
+    stateMap: {
+      idle: { row: 0, frames: 1 },
+      reminding: { row: 1, frames: 1 },
+      snoozing: { row: 2, frames: 1 },
+    },
+  })
+
+  it('loads all builtin pets concurrently and marks source as builtin', async () => {
+    const active = new Set<string>()
+    let maxConcurrent = 0
+    let fetchCount = 0
+    vi.stubGlobal('fetch', vi.fn((url: string | URL | Request) => {
+      fetchCount++
+      const name = String(url)
+      active.add(name)
+      maxConcurrent = Math.max(maxConcurrent, active.size)
+      return new Promise<Response>((resolve) => {
+        setTimeout(() => {
+          active.delete(name)
+          resolve(new Response(petJson, { status: 200 }))
+        }, 10)
+      })
+    }))
+
+    const pets = await loadAllBuiltinPets()
+
+    expect(pets.length).toBeGreaterThan(1)
+    expect(pets.every(p => p.source === 'builtin')).toBe(true)
+    expect(fetchCount).toBe(pets.length)
+    // 串行实现最大并发为 1；并行实现应为全部同时发起
+    expect(maxConcurrent).toBe(pets.length)
+  })
+
+  it('skips failed pets and still returns the rest', async () => {
+    let call = 0
+    vi.stubGlobal('fetch', vi.fn(() => {
+      call++
+      if (call === 1) return Promise.reject(new Error('network'))
+      return Promise.resolve(new Response(petJson, { status: 200 }))
+    }))
+
+    const pets = await loadAllBuiltinPets()
+
+    expect(pets.length).toBeGreaterThan(1)
+    expect(pets.every(p => p.source === 'builtin')).toBe(true)
   })
 })

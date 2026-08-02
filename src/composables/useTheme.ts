@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAppStore } from '../stores/app'
+import { useAppStore, STORAGE_KEYS } from '../stores/app'
 
 export type ThemePref = 'system' | 'light' | 'dark'
 
@@ -34,6 +34,8 @@ export function useTheme() {
 
   function onStorage(e: StorageEvent) {
     if (!e.key) return
+    // 主题刷新只需 settings；records 供设置窗口历史页同步（主窗口写入触发）
+    if (e.key !== STORAGE_KEYS.settings && e.key !== STORAGE_KEYS.records) return
     store.reloadFromStorage()
     apply()
   }
