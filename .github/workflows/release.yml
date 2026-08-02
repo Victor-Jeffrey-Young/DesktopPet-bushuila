@@ -31,6 +31,10 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # GitHub 已退役 Intel runner（macos-13），在 ARM runner 上交叉编译 x86_64 打 universal 包
+      - name: Add x86_64 Apple target
+        run: rustup target add x86_64-apple-darwin
+
       - name: Cache Cargo registry and target
         uses: actions/cache@v4
         with:
@@ -60,12 +64,14 @@ jobs:
 
             请根据你的系统下载对应的安装包：
 
-            - **macOS**：`.dmg`（拖入 Applications 即可）
+            - **macOS**：`.dmg`（Universal，Intel 与 Apple Silicon 通用）
             - **Windows**：`.exe`（NSIS 安装器）
 
             > macOS 未签名包首次打开需右键 → 打开；Windows 未签名包可能触发 SmartScreen 提示。
           releaseDraft: true
           prerelease: false
+          # 交叉编译 x86_64 + aarch64 合并为 universal dmg
+          args: --target universal-apple-darwin
 
   windows:
     needs: macos
@@ -114,7 +120,7 @@ jobs:
 
             请根据你的系统下载对应的安装包：
 
-            - **macOS**：`.dmg`（拖入 Applications 即可）
+            - **macOS**：`.dmg`（Universal，Intel 与 Apple Silicon 通用）
             - **Windows**：`.exe`（NSIS 安装器）
 
             > macOS 未签名包首次打开需右键 → 打开；Windows 未签名包可能触发 SmartScreen 提示。
