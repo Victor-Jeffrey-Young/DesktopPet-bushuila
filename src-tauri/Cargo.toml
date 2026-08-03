@@ -1,6 +1,6 @@
 [package]
 name = "bushuila"
-version = "0.1.0"
+version = "0.1.1"
 description = "补水啦 - 桌面喝水提醒精灵"
 authors = ["you"]
 license = "MIT"
