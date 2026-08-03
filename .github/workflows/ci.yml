@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run tests and typecheck
+        run: npm run test:ci
+
+      - name: Build frontend bundle
+        # 构建产物仅用于回归验证（体积变化可对比 DEVELOPMENT.md 性能基线）
+        run: npm run build
